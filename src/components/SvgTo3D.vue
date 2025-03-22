@@ -15,6 +15,7 @@ const groupRef = useTemplateRef<Group>('group')
 const stlUrl = ref('')
 const defaultDepth = 2.1
 const svgShapes = ref<ShapeWithColor[]>([])
+const scale = ref(1) // 添加缩放控制变量
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -33,7 +34,6 @@ function handleFileSelect(event: Event) {
       const shapes = path.toShapes(true)
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
-      console.log('color', color.getHexString())
       return {
         shape: shapes[0],
         color,
@@ -47,6 +47,10 @@ function handleFileSelect(event: Event) {
 function updateDepth(index: number, depth: number) {
   if (svgShapes.value[index])
     svgShapes.value[index].depth = depth
+}
+
+function updateScale(value: number) {
+  scale.value = value
 }
 
 function handelExportSTL() {
@@ -79,7 +83,11 @@ const controlsConfig = {
       :look-at="[0, 0, 0]"
     />
     <OrbitControls v-bind="controlsConfig" />
-    <TresGroup v-if="svgShapes.length" ref="group">
+    <TresGroup
+      v-if="svgShapes.length"
+      ref="group"
+      :scale="[scale, scale, 1]"
+    >
       <TresMesh
         v-for="(item, index) in svgShapes"
         :key="index"
@@ -111,6 +119,18 @@ const controlsConfig = {
       <span>SVG</span>
     </label>
     <template v-if="svgShapes.length">
+      <div flex="~ gap-2" items-center>
+        <label text-white>整体缩放:</label>
+        <input
+          type="range"
+          min="0.1"
+          step="0.1"
+          max="5"
+          :value="scale"
+          @input="e => updateScale(+(e.target as HTMLInputElement).value)"
+        >
+        <span text-white>{{ scale }}</span>
+      </div>
       <div
         v-for="(item, index) in svgShapes"
         :key="index"
