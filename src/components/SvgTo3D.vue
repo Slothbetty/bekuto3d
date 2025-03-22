@@ -21,9 +21,10 @@ interface ModelSize {
 const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
-const defaultDepth = 2.1
+const baseDepth = 2.1
+const reliefDepth = baseDepth+2
 const svgShapes = ref<ShapeWithColor[]>([])
-const scale = ref(1) // 添加缩放控制变量
+const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 
 let exporter: STLExporter
@@ -39,14 +40,14 @@ function handleFileSelect(event: Event) {
     const svgData = e.target?.result as string
     const svgParsed = loader.parse(svgData)
 
-    svgShapes.value = svgParsed.paths.map((path) => {
+    svgShapes.value = svgParsed.paths.map((path,index) => {
       const shapes = path.toShapes(true)
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
       return {
         shape: markRaw(shapes[0]),
         color: markRaw(color),
-        depth: defaultDepth,
+        depth: index > 0 ? reliefDepth : baseDepth,
       } as ShapeWithColor
     })
   }
@@ -75,8 +76,8 @@ function calculateModelSize() {
       box.getSize(size)
 
       modelSize.value = {
-        width: Number((size.x * scale.value).toFixed(2)),
-        height: Number((size.y * scale.value).toFixed(2)),
+        width: Number(size.x.toFixed(2)),
+        height: Number(size.y.toFixed(2)),
         depth: Number(size.z.toFixed(2)),
       }
     }
@@ -133,7 +134,6 @@ const controlsConfig = {
         <TresExtrudeGeometry
           :args="[item.shape, {
             depth: item.depth,
-            bevelEnabled: false,
           }]"
         />
         <TresMeshBasicMaterial :color="item.color" />
