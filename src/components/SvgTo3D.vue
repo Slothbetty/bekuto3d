@@ -87,6 +87,24 @@ function calculateModelSize() {
   }, 100)
 }
 
+function calcScale(nowScale: number, nowSize: number, targetSize: number) {
+  // 100/(37/0.074)
+  return targetSize / (nowSize / nowScale)
+}
+
+const size = computed({
+  get() {
+    if (svgShapes.value.length === 0)
+      return 0
+    return modelSize.value.width
+  },
+  set(value) {
+    if (svgShapes.value.length === 0)
+      return
+    scale.value = calcScale(scale.value, modelSize.value.width, value)
+  },
+})
+
 // 监听 group 和 scale 的变化
 watch([() => groupRef.value, scale], () => {
   calculateModelSize()
@@ -158,6 +176,13 @@ const controlsConfig = {
     </label>
     <template v-if="svgShapes.length">
       <div flex="~ gap-2" items-center>
+        <label text-white>宽度</label>
+        <input
+          type="number"
+          v-model.lazy.number="size"
+        >
+      </div>
+      <div flex="~ gap-2" items-center>
         <label text-white>整体缩放:</label>
         <input
           type="range"
@@ -167,7 +192,7 @@ const controlsConfig = {
           :value="scale"
           @input="e => updateScale(+(e.target as HTMLInputElement).value)"
         >
-        <span text-white>{{ scale }}</span>
+        <span text-white>{{ scale.toFixed(4) }}</span>
       </div>
       <div
         v-for="(item, index) in svgShapes"
