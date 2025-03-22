@@ -2,6 +2,7 @@
 import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
+import { Box3, Vector3 } from 'three'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 
@@ -11,11 +12,19 @@ interface ShapeWithColor {
   depth: number
 }
 
+interface ModelSize {
+  width: number
+  height: number
+  depth: number
+}
+
 const groupRef = useTemplateRef<Group>('group')
+const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
 const defaultDepth = 2.1
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(1) // 添加缩放控制变量
+const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -35,8 +44,8 @@ function handleFileSelect(event: Event) {
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
       return {
-        shape: shapes[0],
-        color,
+        shape: markRaw(shapes[0]),
+        color: markRaw(color),
         depth: defaultDepth,
       } as ShapeWithColor
     })
@@ -53,8 +62,37 @@ function updateScale(value: number) {
   scale.value = value
 }
 
+function calculateModelSize() {
+  const group = modelGroup.value
+  if (!group)
+    return
+
+  // 延迟执行以确保模型已渲染
+  setTimeout(() => {
+    try {
+      const box = (new Box3()).setFromObject(group, true)
+      const size = new Vector3()
+      box.getSize(size)
+
+      modelSize.value = {
+        width: Number((size.x * scale.value).toFixed(2)),
+        height: Number((size.y * scale.value).toFixed(2)),
+        depth: Number(size.z.toFixed(2)),
+      }
+    }
+    catch (error) {
+      console.error('计算模型尺寸失败:', error)
+    }
+  }, 100)
+}
+
+// 监听 group 和 scale 的变化
+watch([() => groupRef.value, scale], () => {
+  calculateModelSize()
+})
+
 function handelExportSTL() {
-  const group = groupRef.value
+  const group = modelGroup.value
   if (!group)
     return
 
@@ -151,6 +189,12 @@ const controlsConfig = {
           @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
         >
         <span text-white>{{ item.depth }}</span>
+      </div>
+      <div v-if="modelSize.width" flex="~ col gap-2" text-white>
+        <div>模型尺寸:</div>
+        <div>宽度: {{ modelSize.width }}mm</div>
+        <div>高度: {{ modelSize.height }}mm</div>
+        <div>深度: {{ modelSize.depth }}mm</div>
       </div>
     </template>
     <button v-if="svgShapes.length" text-xl text-white p2 rounded bg-blue @click="handelExportSTL">
