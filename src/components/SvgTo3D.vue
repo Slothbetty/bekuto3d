@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { Mesh, Shape } from 'three'
+import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
-import { ExtrudeGeometry, ShapeGeometry } from 'three'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 
@@ -50,15 +50,23 @@ const extrudeSettings = computed(() => ({
   bevelEnabled: false,
 }))
 
-const size = 20
+// 调整相机参数
+const cameraPosition: [number, number, number] = [100, 100, 100]
+const controlsConfig = {
+  enableDamping: true,
+  dampingFactor: 0.05,
+  minDistance: 0,
+  maxDistance: 1000,
+}
 </script>
 
 <template>
   <TresCanvas window-size clear-color="#82DBC5">
     <TresPerspectiveCamera
-      :position="[3 * size, 3 * size, 3 * size]"
+      :position="cameraPosition"
       :look-at="[0, 0, 0]"
     />
+    <OrbitControls v-bind="controlsConfig" />
     <TresMesh v-if="svgPaths.length" ref="mesh">
       <TresExtrudeGeometry
         :args="[svgPaths[0], extrudeSettings]"
@@ -66,7 +74,7 @@ const size = 20
       <TresMeshBasicMaterial color="orange" />
     </TresMesh>
     <TresMesh v-else>
-      <TresTorusGeometry :args="[1 * size, 0.5 * size, 16, 32]" />
+      <TresTorusGeometry :args="[10, 5, 16, 32]" />
       <TresMeshBasicMaterial color="orange" />
     </TresMesh>
     <TresAmbientLight :intensity="1" />
