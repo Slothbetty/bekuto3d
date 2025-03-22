@@ -1,13 +1,18 @@
 <script lang="ts" setup>
-import type { Mesh, Shape } from 'three'
+import type { Group, Mesh, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 
-const meshRef = useTemplateRef<Mesh>('mesh')
+interface ShapeWithColor {
+  shape: Shape
+  color: Color
+}
+
+const groupRef = useTemplateRef<Group>('group')
 const stlUrl = ref('')
-const svgPaths = ref<Shape[]>([])
+const svgShapes = ref<ShapeWithColor[]>([])
 const extrudeDepth = ref(10)
 
 let exporter: STLExporter
@@ -23,23 +28,27 @@ function handleFileSelect(event: Event) {
     const svgData = e.target?.result as string
     const svgParsed = loader.parse(svgData)
 
-    svgPaths.value = svgParsed.paths.map((path) => {
+    svgShapes.value = svgParsed.paths.map((path) => {
       const shapes = path.toShapes(true)
-      return shapes[0]
+      // 获取 SVG 路径的颜色属性
+      const color = path.color || '#FFA500' // 默认橙色
+      return {
+        shape: shapes[0],
+        color,
+      } as ShapeWithColor
     })
   }
   reader.readAsText(file)
 }
 
 function handelExportSTL() {
-  const mesh = meshRef.value
-  if (!mesh) {
+  const group = groupRef.value
+  if (!group)
     return
-  }
-  exporter ||= new STLExporter()
-  const result = exporter.parse(mesh, {
-    binary: false,
 
+  exporter ||= new STLExporter()
+  const result = exporter.parse(group, {
+    binary: false,
   })
 
   stlUrl.value = URL.createObjectURL(new Blob([result]))
@@ -67,12 +76,17 @@ const controlsConfig = {
       :look-at="[0, 0, 0]"
     />
     <OrbitControls v-bind="controlsConfig" />
-    <TresMesh v-if="svgPaths.length" ref="mesh">
-      <TresExtrudeGeometry
-        :args="[svgPaths[0], extrudeSettings]"
-      />
-      <TresMeshBasicMaterial color="orange" />
-    </TresMesh>
+    <TresGroup v-if="svgShapes.length" ref="groupRef">
+      <TresMesh
+        v-for="(item, index) in svgShapes"
+        :key="index"
+      >
+        <TresExtrudeGeometry
+          :args="[item.shape, extrudeSettings]"
+        />
+        <TresMeshBasicMaterial :color="item.color" />
+      </TresMesh>
+    </TresGroup>
     <TresMesh v-else>
       <TresTorusGeometry :args="[10, 5, 16, 32]" />
       <TresMeshBasicMaterial color="orange" />
