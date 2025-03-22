@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Group, Mesh, Shape } from 'three'
+import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
@@ -8,10 +8,12 @@ import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 interface ShapeWithColor {
   shape: Shape
   color: Color
+  depth: number
 }
 
 const groupRef = useTemplateRef<Group>('group')
 const stlUrl = ref('')
+const defaultDepth = 10
 const svgShapes = ref<ShapeWithColor[]>([])
 const extrudeDepth = ref(10)
 
@@ -32,13 +34,20 @@ function handleFileSelect(event: Event) {
       const shapes = path.toShapes(true)
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
+      console.log('color', color.getHexString())
       return {
         shape: shapes[0],
         color,
+        depth: defaultDepth,
       } as ShapeWithColor
     })
   }
   reader.readAsText(file)
+}
+
+function updateDepth(index: number, depth: number) {
+  if (svgShapes.value[index])
+    svgShapes.value[index].depth = depth
 }
 
 function handelExportSTL() {
@@ -70,19 +79,22 @@ const controlsConfig = {
 </script>
 
 <template>
-  <TresCanvas window-size clear-color="#82DBC5">
+  <TresCanvas window-size :clear-color="isDark ? '#437568' : '#82DBC5'">
     <TresPerspectiveCamera
       :position="cameraPosition"
       :look-at="[0, 0, 0]"
     />
     <OrbitControls v-bind="controlsConfig" />
-    <TresGroup v-if="svgShapes.length" ref="groupRef">
+    <TresGroup v-if="svgShapes.length" ref="group">
       <TresMesh
         v-for="(item, index) in svgShapes"
         :key="index"
       >
         <TresExtrudeGeometry
-          :args="[item.shape, extrudeSettings]"
+          :args="[item.shape, {
+            depth: item.depth,
+            bevelEnabled: false,
+          }]"
         />
         <TresMeshBasicMaterial :color="item.color" />
       </TresMesh>
@@ -93,23 +105,35 @@ const controlsConfig = {
     </TresMesh>
     <TresAmbientLight :intensity="1" />
   </TresCanvas>
-  <div left-10 top-10 fixed z-99 flex="~ col gap-4">
+  <div flex="~ col gap-4" p4 rounded-4 bg-white:50 left-10 top-10 fixed z-999 backdrop-blur-md dark:bg-black:50>
     <input
       type="file"
       accept=".svg"
-      class="text-white"
+      class="p2 border rounded bg-white:20"
       @change="handleFileSelect"
     >
-    <div flex="~ gap-2" items-center>
-      <label text-white>拉伸深度:</label>
-      <input
-        v-model="extrudeDepth"
-        type="range"
-        min="1"
-        max="50"
+    <template v-if="svgShapes.length">
+      <div
+        v-for="(item, index) in svgShapes"
+        :key="index"
+        flex="~ gap-2"
+        items-center
       >
-      <span text-white>{{ extrudeDepth }}</span>
-    </div>
+        <div
+          class="rounded h-4 w-4"
+          :style="{ background: `#${item.color.getHexString()}` }"
+        />
+        <label text-white>形状 {{ index + 1 }} 拉伸深度:</label>
+        <input
+          type="range"
+          min="1"
+          max="50"
+          :value="item.depth"
+          @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
+        >
+        <span text-white>{{ item.depth }}</span>
+      </div>
+    </template>
     <button text-xl text-white p2 rounded bg-blue @click="handelExportSTL">
       Export STL
     </button>
