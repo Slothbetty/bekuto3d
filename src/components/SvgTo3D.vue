@@ -13,9 +13,8 @@ interface ShapeWithColor {
 
 const groupRef = useTemplateRef<Group>('group')
 const stlUrl = ref('')
-const defaultDepth = 10
+const defaultDepth = 2.1
 const svgShapes = ref<ShapeWithColor[]>([])
-const extrudeDepth = ref(10)
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -63,11 +62,6 @@ function handelExportSTL() {
   stlUrl.value = URL.createObjectURL(new Blob([result]))
 }
 
-const extrudeSettings = computed(() => ({
-  depth: extrudeDepth.value,
-  bevelEnabled: false,
-}))
-
 // 调整相机参数
 const cameraPosition: [number, number, number] = [100, 100, 100]
 const controlsConfig = {
@@ -105,13 +99,17 @@ const controlsConfig = {
     </TresMesh>
     <TresAmbientLight :intensity="1" />
   </TresCanvas>
-  <div flex="~ col gap-4" p4 rounded-4 bg-white:50 left-10 top-10 fixed z-999 backdrop-blur-md dark:bg-black:50>
-    <input
-      type="file"
-      accept=".svg"
-      class="p2 border rounded bg-white:20"
-      @change="handleFileSelect"
-    >
+  <div flex="~ col gap-4" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 backdrop-blur-md dark:bg-black:50>
+    <label p2 border rounded bg-white:20 flex="~ items-center" relative>
+      <input
+        type="file"
+        accept=".svg"
+        class="op0 inset-0 absolute"
+        @change="handleFileSelect"
+      >
+      <span i-carbon:document-add mr-2 inline-block />
+      <span>SVG</span>
+    </label>
     <template v-if="svgShapes.length">
       <div
         v-for="(item, index) in svgShapes"
@@ -126,15 +124,16 @@ const controlsConfig = {
         <label text-white>形状 {{ index + 1 }} 拉伸深度:</label>
         <input
           type="range"
-          min="1"
-          max="50"
+          min="0.1"
+          step="0.1"
+          max="10"
           :value="item.depth"
           @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
         >
         <span text-white>{{ item.depth }}</span>
       </div>
     </template>
-    <button text-xl text-white p2 rounded bg-blue @click="handelExportSTL">
+    <button v-if="svgShapes.length" text-xl text-white p2 rounded bg-blue @click="handelExportSTL">
       Export STL
     </button>
     <a
