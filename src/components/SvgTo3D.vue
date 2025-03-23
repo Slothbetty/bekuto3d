@@ -2,7 +2,7 @@
 import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
-import { Box3, Vector3 } from 'three'
+import { Box3, ShapeUtils, Vector3 } from 'three'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 
@@ -41,7 +41,7 @@ function handleFileSelect(event: Event) {
     const svgParsed = loader.parse(svgData)
 
     svgShapes.value = svgParsed.paths.map((path,index) => {
-      const shapes = path.toShapes(true)
+      const shapes = path.toShapes(ShapeUtils.isClockWise(path.subPaths[path.subPaths.length-1].getPoints()))
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
       return {
@@ -124,7 +124,7 @@ function handelExportSTL() {
 }
 
 // 调整相机参数
-const cameraPosition: [number, number, number] = [100, 100, 100]
+const cameraPosition: [number, number, number] = [-50, 50, -100]
 const controlsConfig = {
   enableDamping: true,
   dampingFactor: 0.05,
@@ -143,7 +143,7 @@ const controlsConfig = {
     <TresGroup
       v-if="svgShapes.length"
       ref="group"
-      :scale="[scale, scale, 1]"
+      :scale="[-scale, -scale, -1]"
     >
       <TresMesh
         v-for="(item, index) in svgShapes"
