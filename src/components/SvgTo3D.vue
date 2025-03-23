@@ -10,6 +10,7 @@ interface ShapeWithColor {
   shape: Shape
   color: Color
   depth: number
+  startZ: number // 添加起点Z轴位置
 }
 
 interface ModelSize {
@@ -22,10 +23,11 @@ const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
 const baseDepth = 2.1
-const reliefDepth = baseDepth + 2
+const reliefDepth = 2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
+const modelOffset = ref({ x: 0, y: 0, z: 0 })
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -48,6 +50,7 @@ function handleFileSelect(event: Event) {
         shape: markRaw(shapes[0]),
         color: markRaw(color),
         depth: index > 0 ? reliefDepth : baseDepth,
+        startZ: index > 0 ? baseDepth : 0,
       } as ShapeWithColor
     })
   }
@@ -63,6 +66,12 @@ function updateScale(value: number) {
   scale.value = value
 }
 
+// 添加更新startZ的函数
+function updateStartZ(index: number, startZ: number) {
+  if (svgShapes.value[index])
+    svgShapes.value[index].startZ = startZ
+}
+
 function calculateModelSize() {
   const group = modelGroup.value
   if (!group)
@@ -75,10 +84,11 @@ function calculateModelSize() {
       const size = new Vector3()
       box.getSize(size)
 
-      group.children.forEach((item) => {
-        item.position.x = size.x / scale.value / -2
-        item.position.y = size.y / scale.value / -2
-      })
+      modelOffset.value = {
+        x: size.x / scale.value / -2,
+        y: size.y / scale.value / -2,
+        z: 0,
+      }
 
       modelSize.value = {
         width: Number(size.x.toFixed(2)),
@@ -154,11 +164,12 @@ const materialConfig = {
     <TresGroup
       v-if="svgShapes.length"
       ref="group"
-      :scale="[-scale, -scale, 1]"
+      :scale="[scale, -scale, 1]"
     >
       <TresMesh
         v-for="(item, index) in svgShapes"
         :key="index"
+        :position="[modelOffset.x, modelOffset.y, item.startZ]"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
@@ -173,7 +184,10 @@ const materialConfig = {
     </TresGroup>
     <TresMesh v-else>
       <TresTorusGeometry :args="[10, 5, 16, 32]" />
-      <TresMeshPhongMaterial color="orange" />
+      <TresMeshPhongMaterial
+        color="orange"
+        v-bind="materialConfig"
+      />
     </TresMesh>
 
     <!-- 重新设计的光照系统 -->
@@ -234,23 +248,36 @@ const materialConfig = {
       <div
         v-for="(item, index) in svgShapes"
         :key="index"
-        flex="~ gap-2"
-        items-center
+        flex="~ col gap-2"
       >
-        <div
-          class="rounded h-4 w-4"
-          :style="{ background: `#${item.color.getHexString()}` }"
-        />
-        <label>形状 {{ index + 1 }} 拉伸深度:</label>
-        <input
-          type="range"
-          min="0.1"
-          step="0.1"
-          max="10"
-          :value="item.depth"
-          @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
-        >
-        <span>{{ item.depth }}</span>
+        <div flex="~ gap-2" items-center>
+          <div
+            class="rounded h-4 w-4"
+            :style="{ background: `#${item.color.getHexString()}` }"
+          />
+          <label>形状 {{ index + 1 }} 拉伸深度:</label>
+          <input
+            type="range"
+            min="0.1"
+            step="0.1"
+            max="10"
+            :value="item.depth"
+            @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
+          >
+          <span>{{ item.depth }}</span>
+        </div>
+        <div flex="~ gap-2" items-center>
+          <label>形状 {{ index + 1 }} 起点位置:</label>
+          <input
+            type="range"
+            min="-10"
+            step="0.1"
+            max="10"
+            :value="item.startZ"
+            @input="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
+          >
+          <span>{{ item.startZ }}</span>
+        </div>
       </div>
       <div v-if="modelSize.width" flex="~ col gap-2">
         <div>模型尺寸:</div>
