@@ -4,6 +4,7 @@ import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { Box3, ShapeUtils, Vector3 } from 'three'
+import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 
@@ -23,6 +24,8 @@ interface ModelSize {
 const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
+const objUrl = ref('')
+const fileName = ref('')
 const baseDepth = 2.1
 const reliefDepth = 2
 const svgShapes = ref<ShapeWithColor[]>([])
@@ -30,13 +33,18 @@ const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
 
-let exporter: STLExporter
+let stlExporter: STLExporter
+let objExporter: OBJExporter
 const loader = new SVGLoader()
 
 function handleFileSelect(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
+  const inputEl = event.target as HTMLInputElement
+  const file = inputEl.files?.[0]
   if (!file)
     return
+  fileName.value = file.name
+  console.log('file:', file.name)
+  inputEl.value = ''
 
   const reader = new FileReader()
   reader.onload = (e) => {
@@ -125,17 +133,28 @@ watch([() => groupRef.value, scale, () => svgShapes.value.map(i => [i.depth, i.s
   calculateModelSize()
 })
 
-function handelExportSTL() {
+function handleExportSTL() {
   const group = modelGroup.value
   if (!group)
     return
 
-  exporter ||= new STLExporter()
-  const result = exporter.parse(group, {
+  stlExporter ||= new STLExporter()
+  const result = stlExporter.parse(group, {
     binary: true,
   })
 
   stlUrl.value = URL.createObjectURL(new Blob([result], { type: 'application/octet-stream' }))
+}
+
+function handleExportOBJ() {
+  const group = modelGroup.value
+  if (!group)
+    return
+
+  objExporter ||= new OBJExporter()
+  const result = objExporter.parse(group)
+
+  objUrl.value = URL.createObjectURL(new Blob([result], { type: 'text/plain' }))
 }
 
 // 调整相机参数
@@ -286,18 +305,34 @@ const materialConfig = {
         <div>高度: {{ modelSize.height }}mm</div>
         <div>深度: {{ modelSize.depth }}mm</div>
       </div>
+      <div>
+        <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handleExportSTL">
+          Export STL
+        </button>
+        <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handleExportOBJ">
+          Export OBJ
+        </button>
+      </div>
+      <a
+        v-if="stlUrl"
+        :href="stlUrl"
+        :download="`${fileName}.stl`"
+        text-xl
+        text-blue
+        @click="stlUrl = ''"
+      >
+        Download The STL File
+      </a>
+      <a
+        v-if="objUrl"
+        :href="objUrl"
+        :download="`${fileName}.obj`"
+        text-xl
+        text-blue
+        @click="objUrl = ''"
+      >
+        Download The OBJ File
+      </a>
     </template>
-    <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handelExportSTL">
-      Export STL
-    </button>
-    <a
-      v-if="stlUrl"
-      :href="stlUrl"
-      download="tres-test-model.stl"
-      text-xl
-      text-blue
-    >
-      Download The STL File
-    </a>
   </div>
 </template>
