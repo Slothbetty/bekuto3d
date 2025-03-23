@@ -1,3 +1,4 @@
+<!-- eslint-disable no-sequences -->
 <script lang="ts" setup>
 import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
@@ -103,7 +104,6 @@ function calculateModelSize() {
 }
 
 function calcScale(nowScale: number, nowSize: number, targetSize: number) {
-  // 100/(37/0.074)
   return targetSize / (nowSize / nowScale)
 }
 
@@ -121,7 +121,7 @@ const size = computed({
 })
 
 // 监听 group 和 scale 的变化
-watch([() => groupRef.value, scale], () => {
+watch([() => groupRef.value, scale, () => svgShapes.value.map(i => [i.depth, i.startZ])], () => {
   calculateModelSize()
 })
 
@@ -132,10 +132,10 @@ function handelExportSTL() {
 
   exporter ||= new STLExporter()
   const result = exporter.parse(group, {
-    binary: false,
+    binary: true,
   })
 
-  stlUrl.value = URL.createObjectURL(new Blob([result]))
+  stlUrl.value = URL.createObjectURL(new Blob([result], { type: 'application/octet-stream' }))
 }
 
 // 调整相机参数
@@ -167,13 +167,14 @@ const materialConfig = {
       :scale="[scale, -scale, 1]"
     >
       <TresMesh
-        v-for="(item, index) in svgShapes"
+        v-for="(item, index) in svgShapes.filter(i => i.depth)"
         :key="index"
-        :position="[modelOffset.x, modelOffset.y, item.startZ]"
+        :position="[modelOffset.x, modelOffset.y, modelOffset.z + item.startZ]"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
             depth: item.depth,
+            bevelEnabled: false,
           }]"
         />
         <TresMeshPhongMaterial
@@ -258,7 +259,7 @@ const materialConfig = {
           <label>形状 {{ index + 1 }} 拉伸深度:</label>
           <input
             type="range"
-            min="0.1"
+            min="0"
             step="0.1"
             max="10"
             :value="item.depth"
