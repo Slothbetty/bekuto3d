@@ -136,6 +136,12 @@ const controlsConfig = {
   minDistance: 0,
   maxDistance: 1000,
 }
+
+// 添加材质相关参数
+const materialConfig = {
+  shininess: 100,      // 增加高光度
+  specular: '#ffffff', // 添加镜面反射颜色
+}
 </script>
 
 <template>
@@ -159,14 +165,40 @@ const controlsConfig = {
             depth: item.depth,
           }]"
         />
-        <TresMeshBasicMaterial :color="item.color" />
+        <TresMeshPhongMaterial
+          :color="item.color"
+          v-bind="materialConfig"
+        />
       </TresMesh>
     </TresGroup>
     <TresMesh v-else>
       <TresTorusGeometry :args="[10, 5, 16, 32]" />
-      <TresMeshBasicMaterial color="orange" />
+      <TresMeshPhongMaterial color="orange" />
     </TresMesh>
-    <TresAmbientLight :intensity="1" />
+
+    <!-- 重新设计的光照系统 -->
+    <!-- 主光源：从右上方打光 -->
+    <TresDirectionalLight
+      :position="[100, 100, 50]"
+      :intensity="0.8"
+    />
+    <!-- 侧面补光：从左侧打光 -->
+    <TresDirectionalLight
+      :position="[-50, 20, 50]"
+      :intensity="0.4"
+    />
+    <!-- 正面补光：轻微的正面打光 -->
+    <TresDirectionalLight
+      :position="[0, 0, 100]"
+      :intensity="0.3"
+    />
+    <!-- 柔和的环境光 -->
+    <TresAmbientLight :intensity="0.4" />
+    <!-- 半球光：提供更自然的环境光照 -->
+    <TresHemisphereLight
+      :args="['#ffffff', '#4444ff', 0.5]"
+      :position="[0, 100, 0]"
+    />
   </TresCanvas>
   <div flex="~ col gap-4" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 backdrop-blur-md dark:bg-black:50>
     <label p2 border rounded bg-white:20 flex="~ items-center" relative>
@@ -181,14 +213,14 @@ const controlsConfig = {
     </label>
     <template v-if="svgShapes.length">
       <div flex="~ gap-2" items-center>
-        <label text-white>宽度</label>
+        <label>宽度</label>
         <input
           type="number"
           v-model.lazy.number="size"
         >
       </div>
       <div flex="~ gap-2" items-center>
-        <label text-white>整体缩放:</label>
+        <label>整体缩放:</label>
         <input
           type="range"
           min="0.1"
@@ -197,7 +229,7 @@ const controlsConfig = {
           :value="scale"
           @input="e => updateScale(+(e.target as HTMLInputElement).value)"
         >
-        <span text-white>{{ scale.toFixed(4) }}</span>
+        <span>{{ scale.toFixed(4) }}</span>
       </div>
       <div
         v-for="(item, index) in svgShapes"
@@ -209,7 +241,7 @@ const controlsConfig = {
           class="rounded h-4 w-4"
           :style="{ background: `#${item.color.getHexString()}` }"
         />
-        <label text-white>形状 {{ index + 1 }} 拉伸深度:</label>
+        <label>形状 {{ index + 1 }} 拉伸深度:</label>
         <input
           type="range"
           min="0.1"
@@ -218,16 +250,16 @@ const controlsConfig = {
           :value="item.depth"
           @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
         >
-        <span text-white>{{ item.depth }}</span>
+        <span>{{ item.depth }}</span>
       </div>
-      <div v-if="modelSize.width" flex="~ col gap-2" text-white>
+      <div v-if="modelSize.width" flex="~ col gap-2">
         <div>模型尺寸:</div>
         <div>宽度: {{ modelSize.width }}mm</div>
         <div>高度: {{ modelSize.height }}mm</div>
         <div>深度: {{ modelSize.depth }}mm</div>
       </div>
     </template>
-    <button v-if="svgShapes.length" text-xl text-white p2 rounded bg-blue @click="handelExportSTL">
+    <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handelExportSTL">
       Export STL
     </button>
     <a
