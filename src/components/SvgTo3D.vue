@@ -18,6 +18,12 @@ interface ModelSize {
   depth: number
 }
 
+interface ModelOffset {
+  x: number
+  y: number
+  z: number
+}
+
 const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
@@ -26,6 +32,7 @@ const reliefDepth = baseDepth+2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
+const modelOffset = ref<ModelOffset>({ x: 0, y: 0, z: 0 })
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -74,6 +81,12 @@ function calculateModelSize() {
       const box = (new Box3()).setFromObject(group, true)
       const size = new Vector3()
       box.getSize(size)
+
+      modelOffset.value = {
+        x: size.x / -2,
+        y: size.y / -2,
+        z: 0,
+      }
 
       modelSize.value = {
         width: Number(size.x.toFixed(2)),
@@ -144,6 +157,7 @@ const controlsConfig = {
       v-if="svgShapes.length"
       ref="group"
       :scale="[-scale, -scale, -1]"
+      :position="[modelOffset.x, modelOffset.y, modelOffset.z]"
     >
       <TresMesh
         v-for="(item, index) in svgShapes"
