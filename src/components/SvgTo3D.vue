@@ -81,10 +81,9 @@ function calculateModelSize() {
       const box = (new Box3()).setFromObject(group, true)
       const size = new Vector3()
       box.getSize(size)
-
       modelOffset.value = {
-        x: size.x / -2,
-        y: size.y / -2,
+        x: (size.x*scale.value) / -2,
+        y: (size.y*scale.value) / -2,
         z: 0,
       }
 
@@ -157,11 +156,11 @@ const controlsConfig = {
       v-if="svgShapes.length"
       ref="group"
       :scale="[-scale, -scale, -1]"
-      :position="[modelOffset.x, modelOffset.y, modelOffset.z]"
     >
       <TresMesh
         v-for="(item, index) in svgShapes"
         :key="index"
+        :position="[modelOffset.x, modelOffset.y, modelOffset.z]"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
@@ -169,6 +168,10 @@ const controlsConfig = {
           }]"
         />
         <TresMeshBasicMaterial :color="item.color" />
+      </TresMesh>
+      <TresMesh :position="[0,0,0]">
+        <TresTorusGeometry :args="[10, 5, 16, 32]" />
+        <TresMeshBasicMaterial color="red" />
       </TresMesh>
     </TresGroup>
     <TresMesh v-else>
