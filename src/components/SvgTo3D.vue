@@ -18,12 +18,6 @@ interface ModelSize {
   depth: number
 }
 
-interface ModelOffset {
-  x: number
-  y: number
-  z: number
-}
-
 const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
@@ -32,7 +26,6 @@ const reliefDepth = baseDepth+2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
-const modelOffset = ref<ModelOffset>({ x: 0, y: 0, z: 0 })
 
 let exporter: STLExporter
 const loader = new SVGLoader()
@@ -76,16 +69,16 @@ function calculateModelSize() {
     return
 
   // 延迟执行以确保模型已渲染
-  setTimeout(() => {
+  nextTick(() => {
     try {
       const box = (new Box3()).setFromObject(group, true)
       const size = new Vector3()
       box.getSize(size)
-      modelOffset.value = {
-        x: (size.x*scale.value) / -2,
-        y: (size.y*scale.value) / -2,
-        z: 0,
-      }
+
+      group.children.forEach(item => {
+        item.position.x = size.x / scale.value / -2
+        item.position.y = size.y / scale.value / -2
+      })
 
       modelSize.value = {
         width: Number(size.x.toFixed(2)),
@@ -96,7 +89,7 @@ function calculateModelSize() {
     catch (error) {
       console.error('计算模型尺寸失败:', error)
     }
-  }, 100)
+  })
 }
 
 function calcScale(nowScale: number, nowSize: number, targetSize: number) {
@@ -160,7 +153,6 @@ const controlsConfig = {
       <TresMesh
         v-for="(item, index) in svgShapes"
         :key="index"
-        :position="[modelOffset.x, modelOffset.y, modelOffset.z]"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
@@ -168,10 +160,6 @@ const controlsConfig = {
           }]"
         />
         <TresMeshBasicMaterial :color="item.color" />
-      </TresMesh>
-      <TresMesh :position="[0,0,0]">
-        <TresTorusGeometry :args="[10, 5, 16, 32]" />
-        <TresMeshBasicMaterial color="red" />
       </TresMesh>
     </TresGroup>
     <TresMesh v-else>
