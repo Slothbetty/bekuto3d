@@ -22,7 +22,7 @@ const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
 const baseDepth = 2.1
-const reliefDepth = baseDepth+2
+const reliefDepth = baseDepth + 2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
@@ -40,8 +40,8 @@ function handleFileSelect(event: Event) {
     const svgData = e.target?.result as string
     const svgParsed = loader.parse(svgData)
 
-    svgShapes.value = svgParsed.paths.map((path,index) => {
-      const shapes = path.toShapes(ShapeUtils.isClockWise(path.subPaths[path.subPaths.length-1].getPoints()))
+    svgShapes.value = svgParsed.paths.map((path, index) => {
+      const shapes = path.toShapes(ShapeUtils.isClockWise(path.subPaths[path.subPaths.length - 1].getPoints()))
       // 获取 SVG 路径的颜色属性
       const color = path.color || '#FFA500' // 默认橙色
       return {
@@ -75,7 +75,7 @@ function calculateModelSize() {
       const size = new Vector3()
       box.getSize(size)
 
-      group.children.forEach(item => {
+      group.children.forEach((item) => {
         item.position.x = size.x / scale.value / -2
         item.position.y = size.y / scale.value / -2
       })
@@ -129,7 +129,7 @@ function handelExportSTL() {
 }
 
 // 调整相机参数
-const cameraPosition: [number, number, number] = [-50, 50, -100]
+const cameraPosition: [number, number, number] = [-50, 50, 100]
 const controlsConfig = {
   enableDamping: true,
   dampingFactor: 0.05,
@@ -139,8 +139,8 @@ const controlsConfig = {
 
 // 添加材质相关参数
 const materialConfig = {
-  shininess: 100,      // 增加高光度
-  specular: '#ffffff', // 添加镜面反射颜色
+  shininess: 100, // 增加高光度
+  specular: '#ffffffd0', // 添加镜面反射颜色
 }
 </script>
 
@@ -154,7 +154,7 @@ const materialConfig = {
     <TresGroup
       v-if="svgShapes.length"
       ref="group"
-      :scale="[-scale, -scale, -1]"
+      :scale="[-scale, -scale, 1]"
     >
       <TresMesh
         v-for="(item, index) in svgShapes"
@@ -215,8 +215,8 @@ const materialConfig = {
       <div flex="~ gap-2" items-center>
         <label>宽度</label>
         <input
-          type="number"
           v-model.lazy.number="size"
+          type="number"
         >
       </div>
       <div flex="~ gap-2" items-center>
