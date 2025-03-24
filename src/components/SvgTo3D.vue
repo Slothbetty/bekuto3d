@@ -280,7 +280,15 @@ const materialConfig = {
           :value="scale"
           @input="e => updateScale(+(e.target as HTMLInputElement).value)"
         >
-        <span>{{ scale.toFixed(4) }}</span>
+        <input
+          type="number"
+          min="0.1"
+          step="0.1"
+          max="5"
+          :value="scale"
+          class="px-1 rounded w-20 inline-block"
+          @change="e => updateScale(+(e.target as HTMLInputElement).value)"
+        >
       </div>
       <div
         v-for="(item, index) in svgShapes"
@@ -301,7 +309,15 @@ const materialConfig = {
             :value="item.depth"
             @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
           >
-          <span>{{ item.depth }}</span>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            max="10"
+            :value="item.depth"
+            class="px-1 rounded w-20 inline-block"
+            @change="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
+          >
         </div>
         <div flex="~ gap-2" items-center>
           <label>形状 {{ index + 1 }} 起点位置:</label>
@@ -313,7 +329,15 @@ const materialConfig = {
             :value="item.startZ"
             @input="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
           >
-          <span>{{ item.startZ }}</span>
+          <input
+            type="number"
+            min="-10"
+            step="0.1"
+            max="10"
+            :value="item.startZ"
+            class="px-1 rounded w-20 inline-block"
+            @change="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
+          >
         </div>
       </div>
       <div v-if="modelSize.width" flex="~ col gap-2">
