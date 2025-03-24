@@ -44,5 +44,9 @@
     "json",
     "jsonc",
     "yaml"
+  ],
+  "cSpell.words": [
+    "cientos",
+    "tresjs"
   ]
 }
