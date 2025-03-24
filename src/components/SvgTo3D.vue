@@ -82,10 +82,6 @@ function updateDepth(index: number, depth: number) {
     svgShapes.value[index].depth = depth
 }
 
-function updateScale(value: number) {
-  scale.value = value
-}
-
 // 添加更新startZ的函数
 function updateStartZ(index: number, startZ: number) {
   if (svgShapes.value[index])
@@ -260,141 +256,127 @@ const materialConfig = {
       :position="[0, 100, 0]"
     />
   </TresCanvas>
-  <div flex="~ col gap-4" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 backdrop-blur-md dark:bg-black:50>
-    <label p2 border rounded bg-white:20 flex="~ items-center" relative>
+  <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">
+    <label flex="~ items-center" p2 border rounded cursor-pointer relative bg="black/10 dark:white/20 hover:black/20 dark:hover:white/30" title="Select SVG File">
       <input
         type="file"
         accept=".svg"
-        class="op0 inset-0 absolute"
+        class="op0 inset-0 absolute z--1"
         @change="handleFileSelect"
       >
-      <span i-carbon:document-add mr-2 inline-block />
-      <span>SVG</span>
+      <template v-if="fileName">
+        <span i-carbon:document mr-2 inline-block />
+        <span>{{ fileName }}</span>
+      </template>
+      <template v-else>
+        <span i-carbon:document-add mr-2 inline-block />
+        <span>SVG</span>
+      </template>
     </label>
     <template v-if="svgShapes.length">
-      <div flex="~ gap-2" items-center>
-        <label>宽度</label>
+      <div flex="~ gap-2 items-center">
+        <label i-iconoir-scale-frame-enlarge inline-block />
         <input
           v-model.lazy.number="size"
           type="number"
+          class="px-1 border-b w-20 inline-block"
         >
+        <div flex-1 />
+        <div>unit: <span text-blue>mm</span></div>
       </div>
-      <div flex="~ gap-2" items-center>
-        <label>整体缩放:</label>
-        <input
-          type="range"
-          min="0.1"
-          step="0.1"
-          max="5"
-          :value="scale"
-          @input="e => updateScale(+(e.target as HTMLInputElement).value)"
+      <div flex="~ col gap-4">
+        <div
+          v-for="(item, index) in svgShapes"
+          :key="index"
+          flex="~ gap-4"
         >
-        <input
-          type="number"
-          min="0.1"
-          step="0.1"
-          max="5"
-          :value="scale"
-          class="px-1 rounded w-20 inline-block"
-          @change="e => updateScale(+(e.target as HTMLInputElement).value)"
-        >
-      </div>
-      <div
-        v-for="(item, index) in svgShapes"
-        :key="index"
-        flex="~ col gap-2"
-      >
-        <div flex="~ gap-2" items-center>
-          <div
-            class="rounded h-4 w-4"
-            :style="{ background: `#${item.color.getHexString()}` }"
-          />
-          <label>形状 {{ index + 1 }} 拉伸深度:</label>
-          <input
-            type="range"
-            min="0"
-            step="0.1"
-            max="10"
-            :value="item.depth"
-            @input="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
-          >
-          <input
-            type="number"
-            min="0"
-            step="0.1"
-            max="10"
-            :value="item.depth"
-            class="px-1 rounded w-20 inline-block"
-            @change="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
-          >
-        </div>
-        <div flex="~ gap-2" items-center>
-          <label>形状 {{ index + 1 }} 起点位置:</label>
-          <input
-            type="range"
-            min="-10"
-            step="0.1"
-            max="10"
-            :value="item.startZ"
-            @input="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
-          >
-          <input
-            type="number"
-            min="-10"
-            step="0.1"
-            max="10"
-            :value="item.startZ"
-            class="px-1 rounded w-20 inline-block"
-            @change="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
-          >
+          <div flex="~ gap-2 items-center" :title="`Shape ${index + 1}`">
+            <div
+              class="border rounded h-5 min-h-5 min-w-5 w-5"
+              :style="{ background: `#${item.color.getHexString()}` }"
+            />
+            <pre>{{ index + 1 }}</pre>
+          </div>
+          <div flex="~ gap-2 items-center" title="起点位置">
+            <label i-iconoir-position inline-block />
+            <input
+              type="number"
+              min="-10"
+              step="0.1"
+              max="10"
+              :value="item.startZ"
+              class="px-1 border-b w-20 inline-block"
+              @change="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
+            >
+          </div>
+          <div flex="~ gap-2 items-center" title="拉伸深度">
+            <label i-iconoir-extrude inline-block />
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              max="10"
+              :value="item.depth"
+              class="px-1 border-b w-20 inline-block"
+              @change="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
+            >
+          </div>
         </div>
       </div>
-      <div v-if="modelSize.width" flex="~ col gap-2">
-        <div>模型尺寸:</div>
-        <div>宽度: {{ modelSize.width }}mm</div>
-        <div>高度: {{ modelSize.height }}mm</div>
-        <div>深度: {{ modelSize.depth }}mm</div>
+      <div v-if="modelSize.width" flex="~ gap-2 text-sm items-center" title="Size">
+        <div i-iconoir-ruler-combine />
+        <div>W: {{ modelSize.width }}mm</div>
+        <div>H: {{ modelSize.height }}mm</div>
+        <div>L: {{ modelSize.depth }}mm</div>
       </div>
-      <div>
-        <button text-xl p2 rounded bg-blue @click="handleExportSTL">
-          Export STL
-        </button>
-        <button text-xl p2 rounded bg-blue @click="handleExportOBJ">
-          Export OBJ
-        </button>
-        <button text-xl p2 rounded bg-blue @click="handleExportGLTF">
-          Export GLTF
-        </button>
-        <a
-          v-if="stlUrl"
-          :href="stlUrl"
-          :download="`${fileName}.stl`"
-          text-xl
-          text-blue
-          @click="stlUrl = ''"
-        >
-          Download The STL File
-        </a>
-        <a
-          v-if="objUrl"
-          :href="objUrl"
-          :download="`${fileName}.obj`"
-          text-xl
-          text-blue
-          @click="objUrl = ''"
-        >
-          Download The OBJ File
-        </a>
-        <a
-          v-if="gltfUrl"
-          :href="gltfUrl"
-          :download="`${fileName}.gltf`"
-          text-xl
-          text-blue
-          @click="gltfUrl = ''"
-        >
-          Download The GLTF File
-        </a>
+      <div flex="~ col gap-2">
+        <h2 text-lg flex="~ items-center gap-2">
+          <div i-iconoir-floppy-disk-arrow-in />
+          Export
+        </h2>
+        <div v-if="!(stlUrl || objUrl || gltfUrl)" flex="~ gap-2">
+          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportSTL">
+            STL
+          </button>
+          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportOBJ">
+            OBJ
+          </button>
+          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportGLTF">
+            GLTF
+          </button>
+        </div>
+        <div v-else flex="~ gap-2" text-white>
+          <a
+            v-if="stlUrl"
+            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
+            :href="stlUrl"
+            :download="`${fileName}.stl`"
+            @click="stlUrl = ''"
+          >
+            Download The STL File
+          </a>
+          <a
+            v-if="objUrl"
+            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
+            :href="objUrl"
+            :download="`${fileName}.obj`"
+            @click="objUrl = ''"
+          >
+            Download The OBJ File
+          </a>
+          <a
+            v-if="gltfUrl"
+            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
+            :href="gltfUrl"
+            :download="`${fileName}.gltf`"
+            @click="gltfUrl = ''"
+          >
+            Download The GLTF File
+          </a>
+          <button title="close" text-xl p2 rounded bg-gray cursor-pointer @click="() => { stlUrl = ''; objUrl = ''; gltfUrl = '' }">
+            <div i-carbon:close />
+          </button>
+        </div>
       </div>
     </template>
   </div>

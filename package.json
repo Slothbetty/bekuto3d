@@ -23,6 +23,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.5.1",
     "@iconify-json/carbon": "^1.2.8",
+    "@iconify-json/iconoir": "^1.2.7",
     "@types/node": "^22.13.9",
     "@types/three": "^0.174.0",
     "@unocss/eslint-config": "^66.1.0-beta.3",
