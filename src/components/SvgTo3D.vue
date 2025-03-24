@@ -4,6 +4,7 @@ import type { Color, Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { Box3, ShapeUtils, Vector3 } from 'three'
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
@@ -25,6 +26,7 @@ const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
 const objUrl = ref('')
+const gltfUrl = ref('')
 const fileName = ref('')
 const baseDepth = 2.1
 const reliefDepth = 2
@@ -35,6 +37,7 @@ const modelOffset = ref({ x: 0, y: 0, z: 0 })
 
 let stlExporter: STLExporter
 let objExporter: OBJExporter
+let gltfExporter: GLTFExporter
 const loader = new SVGLoader()
 
 function handleFileSelect(event: Event) {
@@ -43,7 +46,6 @@ function handleFileSelect(event: Event) {
   if (!file)
     return
   fileName.value = file.name
-  console.log('file:', file.name)
   inputEl.value = ''
 
   const reader = new FileReader()
@@ -155,6 +157,21 @@ function handleExportOBJ() {
   const result = objExporter.parse(group)
 
   objUrl.value = URL.createObjectURL(new Blob([result], { type: 'text/plain' }))
+}
+
+function handleExportGLTF() {
+  const group = modelGroup.value
+  if (!group)
+    return
+
+  gltfExporter ||= new GLTFExporter()
+  gltfExporter.parse(group, (result) => {
+    gltfUrl.value = URL.createObjectURL(new Blob([result as ArrayBuffer], { type: 'application/octet-stream' }))
+  }, (error) => {
+    console.error('导出 GLTF 失败:', error)
+  }, {
+    binary: true,
+  })
 }
 
 // 调整相机参数
@@ -306,33 +323,46 @@ const materialConfig = {
         <div>深度: {{ modelSize.depth }}mm</div>
       </div>
       <div>
-        <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handleExportSTL">
+        <button text-xl p2 rounded bg-blue @click="handleExportSTL">
           Export STL
         </button>
-        <button v-if="svgShapes.length" text-xl p2 rounded bg-blue @click="handleExportOBJ">
+        <button text-xl p2 rounded bg-blue @click="handleExportOBJ">
           Export OBJ
         </button>
+        <button text-xl p2 rounded bg-blue @click="handleExportGLTF">
+          Export GLTF
+        </button>
+        <a
+          v-if="stlUrl"
+          :href="stlUrl"
+          :download="`${fileName}.stl`"
+          text-xl
+          text-blue
+          @click="stlUrl = ''"
+        >
+          Download The STL File
+        </a>
+        <a
+          v-if="objUrl"
+          :href="objUrl"
+          :download="`${fileName}.obj`"
+          text-xl
+          text-blue
+          @click="objUrl = ''"
+        >
+          Download The OBJ File
+        </a>
+        <a
+          v-if="gltfUrl"
+          :href="gltfUrl"
+          :download="`${fileName}.gltf`"
+          text-xl
+          text-blue
+          @click="gltfUrl = ''"
+        >
+          Download The GLTF File
+        </a>
       </div>
-      <a
-        v-if="stlUrl"
-        :href="stlUrl"
-        :download="`${fileName}.stl`"
-        text-xl
-        text-blue
-        @click="stlUrl = ''"
-      >
-        Download The STL File
-      </a>
-      <a
-        v-if="objUrl"
-        :href="objUrl"
-        :download="`${fileName}.obj`"
-        text-xl
-        text-blue
-        @click="objUrl = ''"
-      >
-        Download The OBJ File
-      </a>
     </template>
   </div>
 </template>
