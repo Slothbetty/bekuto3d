@@ -1,9 +1,9 @@
 <!-- eslint-disable no-sequences -->
 <script lang="ts" setup>
-import type { Color, Group, Shape } from 'three'
+import type { Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
-import { Box3, ShapeUtils, Vector3 } from 'three'
+import { Box3, Color, Vector3 } from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
@@ -54,16 +54,25 @@ function handleFileSelect(event: Event) {
     const svgParsed = loader.parse(svgData)
 
     svgShapes.value = svgParsed.paths.map((path, index) => {
-      const shapes = path.toShapes(ShapeUtils.isClockWise(path.subPaths[path.subPaths.length - 1].getPoints()))
+      // const isCW = ShapeUtils.isClockWise(path.subPaths[path.subPaths.length - 1].getPoints())
+      // const isCW = ShapeUtils.isClockWise(path.subPaths[0].getPoints())
+      // console.log('isCW:', isCW, 'all:', path.subPaths.map(i => ShapeUtils.isClockWise(i.getPoints())))
+
+      const shapes = SVGLoader.createShapes(path)
       // 获取 SVG 路径的颜色属性
-      const color = path.color || '#FFA500' // 默认橙色
-      return {
-        shape: markRaw(shapes[0]),
-        color: markRaw(color),
-        depth: index > 0 ? reliefDepth : baseDepth,
-        startZ: index > 0 ? baseDepth : 0,
-      } as ShapeWithColor
-    })
+      const color = path.userData?.style?.fill || '#FFA500' // 默认橙色
+
+      const shapesWithColor = shapes.map((shape) => {
+        return {
+          shape: markRaw(shape),
+          color: markRaw(new Color().setStyle(color)),
+          depth: index > 0 ? reliefDepth : baseDepth,
+          startZ: index > 0 ? baseDepth : 0,
+        } as ShapeWithColor
+      })
+
+      return shapesWithColor
+    }).flat(1)
   }
   reader.readAsText(file)
 }
