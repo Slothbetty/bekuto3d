@@ -100,6 +100,12 @@ function handleFileSelect(event: Event) {
   reader.readAsText(file)
 }
 
+/**
+ * 解决 Z-fighting 问题
+ * 通过微调深度值来解决拉伸方向上面重叠时的闪烁问题
+ * @param shapes
+ * @param scale
+ */
 function suppressZFighting(shapes: ShapeWithColor[], scale = 0.001) {
   const depths = new Map<number, number>()
   const offsets = new Map<number, number>()
