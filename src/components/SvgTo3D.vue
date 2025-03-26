@@ -32,6 +32,7 @@ const baseDepth = 2.1
 const reliefDepth = 2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
+const curveSegments = ref(128)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
 
@@ -216,6 +217,7 @@ const materialConfig = {
           :args="[item.shape, {
             depth: item.depth,
             bevelEnabled: false,
+            curveSegments,
           }]"
         />
         <TresMeshPhongMaterial
@@ -236,7 +238,7 @@ const materialConfig = {
     <!-- 主光源：从右上方打光 -->
     <TresDirectionalLight
       :position="[100, 100, 50]"
-      :intensity="0.8"
+      :intensity="1"
     />
     <!-- 侧面补光：从左侧打光 -->
     <TresDirectionalLight
@@ -246,7 +248,7 @@ const materialConfig = {
     <!-- 正面补光：轻微的正面打光 -->
     <TresDirectionalLight
       :position="[0, 0, 100]"
-      :intensity="0.3"
+      :intensity="0.5"
     />
     <!-- 柔和的环境光 -->
     <TresAmbientLight :intensity="0.4" />
@@ -295,7 +297,7 @@ const materialConfig = {
               class="border rounded h-5 min-h-5 min-w-5 w-5"
               :style="{ background: `#${item.color.getHexString()}` }"
             />
-            <pre>{{ index + 1 }}</pre>
+            <pre min-w-5>{{ index + 1 }}</pre>
           </div>
           <div flex="~ gap-2 items-center" title="起点位置">
             <label i-iconoir-position inline-block />
@@ -325,9 +327,9 @@ const materialConfig = {
       </div>
       <div v-if="modelSize.width" flex="~ gap-2 text-sm items-center" title="Size">
         <div i-iconoir-ruler-combine />
-        <div>W: {{ modelSize.width }}mm</div>
-        <div>H: {{ modelSize.height }}mm</div>
-        <div>L: {{ modelSize.depth }}mm</div>
+        <div>W: {{ modelSize.width }}</div>
+        <div>H: {{ modelSize.height }}</div>
+        <div>L: {{ modelSize.depth }}</div>
       </div>
       <div flex="~ col gap-2">
         <h2 text-lg flex="~ items-center gap-2">
