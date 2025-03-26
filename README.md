@@ -1,6 +1,12 @@
-# SVG to 3D Model Converter
+# Bekuto 3D
+
+SVG to 3D Model Converter
 
 Convert SVG files to 3D models. Export STL, OBJ, or GLTF.
+
+Use it for 3D Printing or 3D Web Development.
+
+**Try it out: [bekuto3d.ayaka.moe](https://bekuto3d.ayaka.moe)**
 
 ## Screenshot
 
