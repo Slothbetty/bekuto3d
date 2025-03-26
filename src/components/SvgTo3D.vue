@@ -1,4 +1,3 @@
-<!-- eslint-disable no-sequences -->
 <script lang="ts" setup>
 import type { Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
@@ -59,10 +58,6 @@ function handleFileSelect(event: Event) {
     const svgParsed = loader.parse(svgData)
 
     svgShapes.value = svgParsed.paths.map((path, index) => {
-      // const isCW = ShapeUtils.isClockWise(path.subPaths[path.subPaths.length - 1].getPoints())
-      // const isCW = ShapeUtils.isClockWise(path.subPaths[0].getPoints())
-      // console.log('isCW:', isCW, 'all:', path.subPaths.map(i => ShapeUtils.isClockWise(i.getPoints())))
-
       const shapes = SVGLoader.createShapes(path)
       // 获取 SVG 路径的颜色属性
       const color = path.userData?.style?.fill || '#FFA500' // 默认橙色
@@ -95,7 +90,7 @@ function offsetPolygon(shapes: ShapeWithColor[], scale = 0.001) {
 
     const depth = shape.startZ + shape.depth
     let depthCount = 0
-    // eslint-disable-next-line no-cond-assign
+
     if (depthCount = depths.get(depth) || 0) {
       return {
         ...shape,
