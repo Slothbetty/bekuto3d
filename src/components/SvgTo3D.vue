@@ -43,7 +43,7 @@ const modelOffset = ref({ x: 0, y: 0, z: 0 })
 const loader = new SVGLoader()
 
 const modelGroup = computed(() => toRaw(groupRef.value))
-const shownShapes = computed(() => offsetPolygon(svgShapes.value).filter(i => i.depth))
+const shownShapes = computed(() => suppressZFighting(svgShapes.value).filter(i => i.depth))
 const size = computed({
   get() {
     if (svgShapes.value.length === 0)
@@ -70,7 +70,7 @@ function handleFileSelect(event: Event) {
     const svgData = e.target?.result as string
     const svgParsed = loader.parse(svgData)
 
-    svgShapes.value = svgParsed.paths.map((path, index) => {
+    svgShapes.value = svgParsed.paths.map((path) => {
       const shapes = SVGLoader.createShapes(path)
       // 获取 SVG 路径的颜色属性
       const color = path.userData?.style?.fill || '#FFA500' // 默认橙色
@@ -80,10 +80,10 @@ function handleFileSelect(event: Event) {
         return {
           shape: markRaw(shape),
           color: markRaw(new Color().setStyle(color)),
-          depth: index > 0 ? reliefDepth : baseDepth,
-          startZ: index > 0 ? baseDepth : 0,
-          // depth: reliefDepth,
-          // startZ: 0,
+          // depth: index > 0 ? reliefDepth : baseDepth,
+          // startZ: index > 0 ? baseDepth : 0,
+          depth: reliefDepth,
+          startZ: true ? 0 : baseDepth,
           opacity: fillOpacity,
           polygonOffset: 0,
         } as ShapeWithColor
@@ -100,23 +100,39 @@ function handleFileSelect(event: Event) {
   reader.readAsText(file)
 }
 
-function offsetPolygon(shapes: ShapeWithColor[], scale = 0.001) {
+function suppressZFighting(shapes: ShapeWithColor[], scale = 0.001) {
   const depths = new Map<number, number>()
-  // const offsets = new Set<number>()
+  const offsets = new Map<number, number>()
 
   return shapes.map((shape) => {
     if (!shape.depth)
       return shape
 
-    const depth = shape.startZ + shape.depth
+    const offset = shape.startZ
+    let offsetCount = 0
+
+    if (offsetCount = offsets.get(offset) || 0) {
+      const newOffset = fixFloat(offsetCount * scale)
+      shape = {
+        ...shape,
+        depth: fixFloat(shape.depth + newOffset),
+        startZ: fixFloat(shape.startZ - newOffset),
+      }
+    }
+
+    offsets.set(offset, offsetCount + 1)
+    return shape
+  }).map((shape) => {
+    if (!shape.depth)
+      return shape
+
+    const depth = fixFloat(shape.startZ + shape.depth)
     let depthCount = 0
 
     if (depthCount = depths.get(depth) || 0) {
-      depths.set(depth, depthCount + 1)
-      return {
+      shape = {
         ...shape,
-        // polygonOffset: depthCount * scale,
-        depth: shape.depth + depthCount * scale,
+        depth: fixFloat(shape.depth + depthCount * scale),
       }
     }
     depths.set(depth, depthCount + 1)
@@ -274,6 +290,10 @@ async function loadDefaultSvg() {
   catch (error) {
     console.error('加载默认 SVG 失败:', error)
   }
+}
+
+function fixFloat(num: number) {
+  return Number.parseFloat(num.toFixed(10))
 }
 
 // 组件加载时自动加载默认文件
