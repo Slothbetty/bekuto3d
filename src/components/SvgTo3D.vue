@@ -32,7 +32,7 @@ const baseDepth = 2.1
 const reliefDepth = 2
 const svgShapes = ref<ShapeWithColor[]>([])
 const scale = ref(0.074) // 添加缩放控制变量
-const curveSegments = ref(128)
+const curveSegments = ref(64)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
 
@@ -194,6 +194,43 @@ const materialConfig = {
   shininess: 100, // 增加高光度
   specular: '#ffffffd0', // 添加镜面反射颜色
 }
+
+// 添加默认文件路径常量
+const DEFAULT_SVG = '/model/bekuto3d.svg'
+
+const isDefaultSvg = computed(() => fileName.value === 'bekuto3d.svg')
+
+// 添加加载默认文件的函数
+async function loadDefaultSvg() {
+  try {
+    const response = await fetch(DEFAULT_SVG)
+    const svgData = await response.text()
+    const svgParsed = loader.parse(svgData)
+
+    fileName.value = 'bekuto3d.svg'
+    svgShapes.value = svgParsed.paths.map((path, index) => {
+      const shapes = SVGLoader.createShapes(path)
+      const color = path.userData?.style?.fill || '#FFA500'
+
+      return shapes.map((shape) => {
+        return {
+          shape: markRaw(shape),
+          color: markRaw(new Color().setStyle(color)),
+          depth: index > 0 ? index === 1 ? 0 : index > 2 ? 3 : 2 : 2.1,
+          startZ: index > 0 ? 2.1 : 0,
+        } as ShapeWithColor
+      })
+    }).flat(1)
+  }
+  catch (error) {
+    console.error('加载默认 SVG 失败:', error)
+  }
+}
+
+// 组件加载时自动加载默认文件
+onMounted(() => {
+  loadDefaultSvg()
+})
 </script>
 
 <template>
@@ -226,13 +263,8 @@ const materialConfig = {
         />
       </TresMesh>
     </TresGroup>
-    <TresMesh v-else>
-      <TresTorusGeometry :args="[10, 5, 16, 32]" />
-      <TresMeshPhongMaterial
-        color="orange"
-        v-bind="materialConfig"
-      />
-    </TresMesh>
+
+    <!-- 移除原来的 Torus 默认显示 -->
 
     <!-- 重新设计的光照系统 -->
     <!-- 主光源：从右上方打光 -->
@@ -276,7 +308,7 @@ const materialConfig = {
         class="op0 inset-0 absolute z--1"
         @change="handleFileSelect"
       >
-      <template v-if="fileName">
+      <template v-if="fileName && !isDefaultSvg">
         <span i-carbon:document mr-2 inline-block />
         <span>{{ fileName }}</span>
       </template>
@@ -285,7 +317,7 @@ const materialConfig = {
         <span>SVG</span>
       </template>
     </label>
-    <template v-if="svgShapes.length">
+    <template v-if="svgShapes.length && !isDefaultSvg">
       <div flex="~ gap-2 items-center">
         <label i-iconoir-scale-frame-enlarge inline-block />
         <input
