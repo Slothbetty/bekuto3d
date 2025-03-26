@@ -200,6 +200,8 @@ const DEFAULT_SVG = '/model/bekuto3d.svg'
 
 const isDefaultSvg = computed(() => fileName.value === 'bekuto3d.svg')
 
+const defaultSvgOffsetList = [0, 2.1]
+const defaultSvgDepthList = [2.1, 0, 3, 2, 2, 4, 2, 2, 2]
 // 添加加载默认文件的函数
 async function loadDefaultSvg() {
   try {
@@ -208,7 +210,7 @@ async function loadDefaultSvg() {
     const svgParsed = loader.parse(svgData)
 
     fileName.value = 'bekuto3d.svg'
-    svgShapes.value = svgParsed.paths.map((path, index) => {
+    svgShapes.value = svgParsed.paths.map((path) => {
       const shapes = SVGLoader.createShapes(path)
       const color = path.userData?.style?.fill || '#FFA500'
 
@@ -216,11 +218,15 @@ async function loadDefaultSvg() {
         return {
           shape: markRaw(shape),
           color: markRaw(new Color().setStyle(color)),
-          depth: index > 0 ? index === 1 ? 0 : index > 2 ? 3 : 2 : 2.1,
-          startZ: index > 0 ? 2.1 : 0,
+          startZ: 0,
+          depth: 0,
         } as ShapeWithColor
       })
-    }).flat(1)
+    }).flat(1).map((item, index) => {
+      item.startZ = defaultSvgOffsetList[index] ?? defaultSvgOffsetList[defaultSvgOffsetList.length - 1] ?? 0
+      item.depth = defaultSvgDepthList[index] ?? 2
+      return item
+    })
   }
   catch (error) {
     console.error('加载默认 SVG 失败:', error)
