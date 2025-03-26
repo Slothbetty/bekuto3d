@@ -34,8 +34,9 @@ const gltfUrl = ref('')
 const fileName = ref('')
 const baseDepth = 2.1
 const reliefDepth = 2
+const defaultSize = 37
 const svgShapes = ref<ShapeWithColor[]>([])
-const scale = ref(0.074) // 添加缩放控制变量
+const scale = ref(1) // 添加缩放控制变量
 const curveSegments = ref(64)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
@@ -43,6 +44,18 @@ const loader = new SVGLoader()
 
 const modelGroup = computed(() => toRaw(groupRef.value))
 const shownShapes = computed(() => offsetPolygon(svgShapes.value).filter(i => i.depth))
+const size = computed({
+  get() {
+    if (svgShapes.value.length === 0)
+      return 0
+    return modelSize.value.width
+  },
+  set(value) {
+    if (svgShapes.value.length === 0)
+      return
+    scale.value = calcScale(scale.value, modelSize.value.width, value)
+  },
+})
 
 function handleFileSelect(event: Event) {
   const inputEl = event.target as HTMLInputElement
@@ -69,6 +82,8 @@ function handleFileSelect(event: Event) {
           color: markRaw(new Color().setStyle(color)),
           depth: index > 0 ? reliefDepth : baseDepth,
           startZ: index > 0 ? baseDepth : 0,
+          // depth: reliefDepth,
+          // startZ: 0,
           opacity: fillOpacity,
           polygonOffset: 0,
         } as ShapeWithColor
@@ -76,6 +91,11 @@ function handleFileSelect(event: Event) {
 
       return shapesWithColor
     }).flat(1)
+
+    nextTick(async () => {
+      await nextTick()
+      size.value = defaultSize
+    })
   }
   reader.readAsText(file)
 }
@@ -92,6 +112,7 @@ function offsetPolygon(shapes: ShapeWithColor[], scale = 0.001) {
     let depthCount = 0
 
     if (depthCount = depths.get(depth) || 0) {
+      depths.set(depth, depthCount + 1)
       return {
         ...shape,
         // polygonOffset: depthCount * scale,
@@ -147,19 +168,6 @@ function calculateModelSize() {
 function calcScale(nowScale: number, nowSize: number, targetSize: number) {
   return targetSize / (nowSize / nowScale)
 }
-
-const size = computed({
-  get() {
-    if (svgShapes.value.length === 0)
-      return 0
-    return modelSize.value.width
-  },
-  set(value) {
-    if (svgShapes.value.length === 0)
-      return
-    scale.value = calcScale(scale.value, modelSize.value.width, value)
-  },
-})
 
 // 监听 group 和 scale 的变化
 watch([() => groupRef.value, scale, () => svgShapes.value.map(i => [i.depth, i.startZ])], () => {
@@ -256,6 +264,11 @@ async function loadDefaultSvg() {
       item.startZ = defaultSvgOffsetList[index] ?? defaultSvgOffsetList[defaultSvgOffsetList.length - 1] ?? 0
       item.depth = defaultSvgDepthList[index] ?? 2
       return item
+    })
+
+    nextTick(async () => {
+      await nextTick()
+      size.value = defaultSize
     })
   }
   catch (error) {
