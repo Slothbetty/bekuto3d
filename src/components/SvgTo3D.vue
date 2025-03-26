@@ -259,6 +259,16 @@ const materialConfig = {
     />
   </TresCanvas>
   <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">
+    <div flex="~ col gap-2">
+      <div flex="~ gap-3 items-center" text-xl font-500>
+        <img src="/logo-dark.svg" size-7.5 class="hidden dark:block">
+        <img src="/logo-light.svg" size-7.5 class="block dark:hidden">
+        <h1>Bekuto 3D</h1>
+      </div>
+      <p op-80>
+        Convert SVG files to 3D models
+      </p>
+    </div>
     <label flex="~ items-center" p2 border rounded cursor-pointer relative bg="black/10 dark:white/20 hover:black/20 dark:hover:white/30" title="Select SVG File">
       <input
         type="file"
