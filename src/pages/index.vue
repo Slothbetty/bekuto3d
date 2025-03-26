@@ -8,7 +8,6 @@ defineOptions({
 
 <template>
   <div>
-    <h1>hi</h1>
     <SvgTo3D />
     <TheFooter bottom-10 right-10 fixed />
   </div>
