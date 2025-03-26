@@ -85,24 +85,25 @@ function handleFileSelect(event: Event) {
   reader.readAsText(file)
 }
 
-function offsetPolygon(shapes: ShapeWithColor[]) {
-  const depths = new Set<number>()
+function offsetPolygon(shapes: ShapeWithColor[], scale = 0.001) {
+  const depths = new Map<number, number>()
   // const offsets = new Set<number>()
-
-  const polygonOffset = 0
 
   return shapes.map((shape) => {
     if (!shape.depth)
       return shape
 
     const depth = shape.startZ + shape.depth
-    if (depths.has(depth)) {
+    let depthCount = 0
+    // eslint-disable-next-line no-cond-assign
+    if (depthCount = depths.get(depth) || 0) {
       return {
         ...shape,
-        polygonOffset: polygonOffset - 0.5,
+        // polygonOffset: depthCount * scale,
+        depth: shape.depth + depthCount * scale,
       }
     }
-    depths.add(depth)
+    depths.set(depth, depthCount + 1)
     return shape
   })
 }
@@ -274,7 +275,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <TresCanvas window-size :clear-color="isDark ? '#437568' : '#82DBC5'">
+  <TresCanvas window-size :clear-color="isDark ? '#437568' : '#82DBC5'" :logarithmic-depth-buffer="true">
     <TresPerspectiveCamera
       :position="cameraPosition"
       :look-at="[0, 0, 0]"
