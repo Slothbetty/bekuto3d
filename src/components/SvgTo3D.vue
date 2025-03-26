@@ -12,8 +12,10 @@ import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 interface ShapeWithColor {
   shape: Shape
   color: Color
+  opacity: number
   depth: number
-  startZ: number // 添加起点Z轴位置
+  startZ: number
+  polygonOffset: number
 }
 
 interface ModelSize {
@@ -22,8 +24,11 @@ interface ModelSize {
   depth: number
 }
 
+let stlExporter: STLExporter
+let objExporter: OBJExporter
+let gltfExporter: GLTFExporter
+
 const groupRef = useTemplateRef<Group>('group')
-const modelGroup = computed(() => toRaw(groupRef.value))
 const stlUrl = ref('')
 const objUrl = ref('')
 const gltfUrl = ref('')
@@ -35,11 +40,10 @@ const scale = ref(0.074) // 添加缩放控制变量
 const curveSegments = ref(64)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
-
-let stlExporter: STLExporter
-let objExporter: OBJExporter
-let gltfExporter: GLTFExporter
 const loader = new SVGLoader()
+
+const modelGroup = computed(() => toRaw(groupRef.value))
+const shownShapes = computed(() => offsetPolygon(svgShapes.value).filter(i => i.depth))
 
 function handleFileSelect(event: Event) {
   const inputEl = event.target as HTMLInputElement
@@ -62,6 +66,7 @@ function handleFileSelect(event: Event) {
       const shapes = SVGLoader.createShapes(path)
       // 获取 SVG 路径的颜色属性
       const color = path.userData?.style?.fill || '#FFA500' // 默认橙色
+      const fillOpacity = path.userData?.style?.fillOpacity ?? 1
 
       const shapesWithColor = shapes.map((shape) => {
         return {
@@ -69,6 +74,8 @@ function handleFileSelect(event: Event) {
           color: markRaw(new Color().setStyle(color)),
           depth: index > 0 ? reliefDepth : baseDepth,
           startZ: index > 0 ? baseDepth : 0,
+          opacity: fillOpacity,
+          polygonOffset: 0,
         } as ShapeWithColor
       })
 
@@ -76,6 +83,28 @@ function handleFileSelect(event: Event) {
     }).flat(1)
   }
   reader.readAsText(file)
+}
+
+function offsetPolygon(shapes: ShapeWithColor[]) {
+  const depths = new Set<number>()
+  // const offsets = new Set<number>()
+
+  const polygonOffset = 0
+
+  return shapes.map((shape) => {
+    if (!shape.depth)
+      return shape
+
+    const depth = shape.startZ + shape.depth
+    if (depths.has(depth)) {
+      return {
+        ...shape,
+        polygonOffset: polygonOffset - 0.5,
+      }
+    }
+    depths.add(depth)
+    return shape
+  })
 }
 
 function updateDepth(index: number, depth: number) {
@@ -190,10 +219,12 @@ const controlsConfig = {
 }
 
 // 添加材质相关参数
-const materialConfig = {
+const materialConfig = ref({
   shininess: 100, // 增加高光度
   specular: '#ffffffd0', // 添加镜面反射颜色
-}
+  transparent: true,
+  wireframe: false,
+})
 
 // 添加默认文件路径常量
 const DEFAULT_SVG = '/model/bekuto3d.svg'
@@ -213,6 +244,7 @@ async function loadDefaultSvg() {
     svgShapes.value = svgParsed.paths.map((path) => {
       const shapes = SVGLoader.createShapes(path)
       const color = path.userData?.style?.fill || '#FFA500'
+      const fillOpacity = path.userData?.style?.fillOpacity ?? 1
 
       return shapes.map((shape) => {
         return {
@@ -220,6 +252,8 @@ async function loadDefaultSvg() {
           color: markRaw(new Color().setStyle(color)),
           startZ: 0,
           depth: 0,
+          opacity: fillOpacity,
+          polygonOffset: 0,
         } as ShapeWithColor
       })
     }).flat(1).map((item, index) => {
@@ -252,9 +286,10 @@ onMounted(() => {
       :scale="[scale, -scale, 1]"
     >
       <TresMesh
-        v-for="(item, index) in svgShapes.filter(i => i.depth)"
+        v-for="(item, index) in shownShapes"
         :key="index"
         :position="[modelOffset.x, modelOffset.y, modelOffset.z + item.startZ]"
+        :render-order="index + 1"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
@@ -264,8 +299,11 @@ onMounted(() => {
           }]"
         />
         <TresMeshPhongMaterial
-          :color="item.color"
           v-bind="materialConfig"
+          :color="item.color"
+          :opacity="item.opacity"
+          :polygon-offset="!!item.polygonOffset"
+          :polygon-offset-factor="item.polygonOffset"
         />
       </TresMesh>
     </TresGroup>
