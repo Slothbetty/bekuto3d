@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Group, Mesh, Shape } from 'three'
+import type { Group, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { Box3, Color, Vector3 } from 'three'
@@ -242,7 +242,7 @@ async function handleExport3MF() {
   if (!group)
     return
 
-  const result = await exportTo3MF(Array.from(group.children as Mesh[]))
+  const result = await exportTo3MF(group)
   the3mfUrl.value = URL.createObjectURL(result)
 }
 

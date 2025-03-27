@@ -1,179 +1,227 @@
-import type { BufferGeometry, Color, Mesh } from 'three'
+import type { Group, Mesh, MeshPhongMaterial, Object3D } from 'three'
+import { XMLBuilder } from 'fast-xml-parser'
 import JSZip from 'jszip'
-import { MeshPhongMaterial, Vector3 } from 'three'
+import { Color, Vector3 } from 'three'
 
 /**
- * 导出模型到 3MF 格式
- *
- * 使用示例：
- * ```
- * const meshes = [mesh1, mesh2, mesh3];  // 多个mesh对象的数组
- * exportToThreeMF(meshes);
- * ```
- * @param meshes
+ * 将 Three.js 的 Group 或 Mesh 导出为 3MF 文件格式
+ * @param object Three.js Group 对象或 Mesh 数组
+ * @returns Blob 数据
  */
-export async function exportTo3MF(meshes: Mesh | Mesh[], scale = 1): Promise<Blob> {
-  // 确保 meshes 是数组
-  if (!Array.isArray(meshes)) {
-    meshes = [meshes]
+export async function exportTo3MF(object: Group | Object3D): Promise<Blob> {
+  const zip = new JSZip()
+
+  // 创建 3MF 所需的基本文件结构
+  const modelData = createModelXML(object)
+  zip.file('[Content_Types].xml', contentTypesXML())
+  zip.file('_rels/.rels', relationshipsXML())
+  zip.file('3D/3dmodel.model', modelData)
+
+  // 生成 ZIP 文件 (3MF 本质上是一个 ZIP 容器)
+  return await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' })
+}
+
+/**
+ * 材质信息接口，用于存储颜色数据
+ */
+interface MaterialInfo {
+  id: number
+  color: Color
+  name: string
+}
+
+/**
+ * 创建 3MF 模型 XML 数据，将所有网格作为单个对象
+ */
+function createModelXML(object: Group | Object3D): string {
+  // 收集所有顶点和三角形数据，合并为一个统一模型
+  const vertices: { x: number, y: number, z: number }[] = []
+  const triangles: { v1: number, v2: number, v3: number, pid?: number }[] = []
+  const materials: MaterialInfo[] = []
+
+  // 递归处理所有网格
+  processObject(object, vertices, triangles, materials)
+
+  // 构建 XML 数据
+  const model = {
+    model: {
+      '@_unit': 'millimeter',
+      '@_xmlns': 'http://schemas.microsoft.com/3dmanufacturing/core/2015/02',
+      'resources': {
+        // 定义材质资源
+        basematerials: materials.length > 0
+          ? {
+              '@_id': '0',
+              'base': materials.map(m => ({
+                '@_name': m.name || `color_${m.id}`,
+                '@_displaycolor': rgbToHexColor(m.color),
+              })),
+            }
+          : undefined,
+        object: {
+          '@_id': '1',
+          '@_type': 'model',
+          'mesh': {
+            vertices: {
+              vertex: vertices.map(v => ({
+                '@_x': v.x.toFixed(7),
+                '@_y': v.y.toFixed(7),
+                '@_z': v.z.toFixed(7),
+              })),
+            },
+            triangles: {
+              triangle: triangles.map(t => ({
+                '@_v1': t.v1,
+                '@_v2': t.v2,
+                '@_v3': t.v3,
+                ...(t.pid !== undefined ? { '@_pid': '0', '@_p1': t.pid } : {}),
+              })),
+            },
+          },
+        },
+      },
+      'build': {
+        item: {
+          '@_objectid': '1',
+          '@_transform': '1 0 0 0 1 0 0 0 1 0 0 0',
+        },
+      },
+    },
   }
 
-  const zip = new JSZip()
-  const xmlBuilder: string[] = []
+  // 如果没有材质，删除空的 basematerials
+  if (materials.length === 0 && model.model.resources.basematerials) {
+    delete model.model.resources.basematerials
+  }
 
-  // 1. 收集和合并材质
-  const materialMap = new Map<number, Color>() // 存储唯一的材质
-  const meshMaterialIds = new Map<Mesh, number>() // 存储每个mesh对应的材质ID
-
-  meshes.forEach((mesh) => {
-    const material = mesh.material
-    // 判断是不是 MeshPhongMaterial
-    if (!(material instanceof MeshPhongMaterial)) {
-      console.warn('Only MeshPhongMaterial is supported', material)
-      // throw new TypeError('Only MeshPhongMaterial is supported')
-      return
-    }
-
-    const color = material.color
-
-    // 查找是否已存在相同颜色的材质
-    let existingMaterialId = null
-    for (const [id, existingColor] of materialMap.entries()) {
-      if (colorsEqual(existingColor, color)) {
-        existingMaterialId = id
-        break
-      }
-    }
-
-    if (existingMaterialId === null) {
-      // 新材质
-      const newId = materialMap.size + 1
-      materialMap.set(newId, color)
-      meshMaterialIds.set(mesh, newId)
-    }
-    else {
-      // 使用已存在的材质
-      meshMaterialIds.set(mesh, existingMaterialId)
-    }
+  const builder = new XMLBuilder({
+    attributeNamePrefix: '@_',
+    ignoreAttributes: false,
+    format: true,
+    indentBy: '  ',
   })
 
-  // 2. 开始构建 XML
-  xmlBuilder.push(`<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
-  <resources>`)
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${builder.build(model)}`
+}
 
-  // 3. 添加材质定义
-  xmlBuilder.push('    <basematerials id="1">')
-  for (const [id, color] of materialMap.entries()) {
-    xmlBuilder.push(`      <base name="material_${id}" displaycolor="${colorToHex(color)}"/>`)
-  }
-  xmlBuilder.push('    </basematerials>')
+/**
+ * 将RGB颜色转换为十六进制颜色字符串
+ */
+function rgbToHexColor(color: Color): string {
+  return `#${color.r.toString(16).padStart(2, '0')}${color.g.toString(16).padStart(2, '0')}${color.b.toString(16).padStart(2, '0')}`
+}
 
-  // 4. 添加所有mesh对象
-  let objectId = 2 // 材质占用了id 1
-  for (const mesh of meshes) {
-    const geometry = mesh.geometry as BufferGeometry
-    const positions = geometry.getAttribute('position')
-    const materialId = meshMaterialIds.get(mesh) || 0
+/**
+ * 递归处理对象及其子对象，收集顶点和三角形数据
+ */
+function processObject(
+  object: Object3D,
+  vertices: { x: number, y: number, z: number }[],
+  triangles: { v1: number, v2: number, v3: number, pid?: number }[],
+  materials: MaterialInfo[],
+) {
+  object.updateMatrixWorld(true)
 
-    // 获取世界变换矩阵
-    mesh.updateWorldMatrix(true, false)
-    const worldMatrix = mesh.matrixWorld
+  // 处理网格
+  if (object.type === 'Mesh') {
+    const mesh = object as Mesh
+    const geometry = mesh.geometry
+    const positionAttr = geometry.attributes.position
+    const indexAttr = geometry.index
+    const vertexOffset = vertices.length
 
-    xmlBuilder.push(`    <object id="${objectId}" type="model" pid="1" pindex="${materialId - 1}">
-      <mesh>`)
+    // 处理材质
+    let materialId: number | undefined
+    if (mesh.material) {
+      // 检查是否已存在相同颜色的材质
+      const color = new Color()
+      if ('color' in mesh.material && mesh.material.color) {
+        color.copy((mesh.material as MeshPhongMaterial).color)
+      }
+      else {
+        // 默认颜色为灰色
+        color.set(0x808080)
+      }
 
-    // 添加顶点
-    xmlBuilder.push('        <vertices>')
-    for (let i = 0; i < positions.count; i++) {
-      // 获取顶点位置
-      const vertex = new Vector3()
-      vertex.fromBufferAttribute(positions, i)
-      // 应用世界变换
-      vertex.applyMatrix4(worldMatrix)
+      const existingMaterial = materials.find(m =>
+        m.color.r === color.r && m.color.g === color.g && m.color.b === color.b,
+      )
 
-      // 转换单位
-      const x = vertex.x * scale
-      const y = vertex.y * scale
-      const z = vertex.z * scale
-
-      xmlBuilder.push(`          <vertex x="${x.toFixed(6)}" y="${y.toFixed(6)}" z="${z.toFixed(6)}"/>`)
+      if (existingMaterial) {
+        materialId = existingMaterial.id
+      }
+      else {
+        materialId = materials.length
+        const materialName = mesh.name ? `${mesh.name}_material` : `material_${materialId}`
+        materials.push({
+          id: materialId,
+          color,
+          name: materialName,
+        })
+      }
     }
-    xmlBuilder.push('        </vertices>')
 
-    // 添加三角面
-    xmlBuilder.push('        <triangles>')
+    // 处理顶点
+    const worldMatrix = mesh.matrixWorld
+    for (let i = 0; i < positionAttr.count; i++) {
+      const vertex = new Vector3()
+      vertex.fromBufferAttribute(positionAttr, i)
+      vertex.applyMatrix4(worldMatrix)
+      vertices.push({
+        x: vertex.x,
+        y: vertex.y,
+        z: vertex.z,
+      })
+    }
 
-    // 检查是否有索引
-    const indices = geometry.index
-    if (indices !== null) {
-      // 有索引的情况
-      for (let i = 0; i < indices.count; i += 3) {
-        const v1 = indices.getX(i)
-        const v2 = indices.getX(i + 1)
-        const v3 = indices.getX(i + 2)
-        xmlBuilder.push(`          <triangle v1="${v1}" v2="${v2}" v3="${v3}"/>`)
+    // 处理三角形
+    if (indexAttr) {
+      // 有索引的几何体
+      for (let i = 0; i < indexAttr.count; i += 3) {
+        triangles.push({
+          v1: vertexOffset + indexAttr.getX(i),
+          v2: vertexOffset + indexAttr.getX(i + 1),
+          v3: vertexOffset + indexAttr.getX(i + 2),
+          ...(materialId !== undefined ? { pid: materialId } : {}),
+        })
       }
     }
     else {
-      // 没有索引的情况，直接使用顶点序号
-      for (let i = 0; i < positions.count; i += 3) {
-        const v1 = i
-        const v2 = i + 1
-        const v3 = i + 2
-        xmlBuilder.push(`          <triangle v1="${v1}" v2="${v2}" v3="${v3}"/>`)
+      // 无索引的几何体
+      for (let i = 0; i < positionAttr.count; i += 3) {
+        triangles.push({
+          v1: vertexOffset + i,
+          v2: vertexOffset + i + 1,
+          v3: vertexOffset + i + 2,
+          ...(materialId !== undefined ? { pid: materialId } : {}),
+        })
       }
     }
-
-    xmlBuilder.push('        </triangles>')
-
-    xmlBuilder.push('      </mesh>')
-    xmlBuilder.push('    </object>')
-
-    objectId++
   }
 
-  // 5. 添加构建信息
-  xmlBuilder.push('  </resources>')
-  xmlBuilder.push('  <build>')
+  // 递归处理子对象
+  object.children.forEach((child) => {
+    processObject(child, vertices, triangles, materials)
+  })
+}
 
-  // 为每个对象添加构建项
-  for (let i = 2; i < objectId; i++) {
-    xmlBuilder.push(`    <item objectid="${i}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>`)
-  }
-
-  xmlBuilder.push('  </build>')
-  xmlBuilder.push('</model>')
-
-  // 6. 添加必需的文件到 ZIP
-  // 添加主模型文件
-  zip.file('3D/3dmodel.model', xmlBuilder.join('\n'))
-
-  // 添加 Content_Types.xml
-  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?>
+/**
+ * 创建 3MF ContentTypes XML
+ */
+function contentTypesXML(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />
   <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />
-</Types>`)
+</Types>`
+}
 
-  // 添加 .rels 文件
-  zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8"?>
+/**
+ * 创建 3MF Relationships XML
+ */
+function relationshipsXML(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" />
-</Relationships>`)
-
-  // 7. 生成并下载文件
-  const blob = await zip.generateAsync({ type: 'blob' })
-
-  return blob
-}
-
-// 辅助函数：转换 Three.js Color 为 hex 字符串
-function colorToHex(color: Color): string {
-  return `#${color.getHexString()}`
-}
-
-// 辅助函数：比较两个颜色是否相同
-function colorsEqual(color1: Color, color2: Color): boolean {
-  return color1.getHexString() === color2.getHexString()
+</Relationships>`
 }
