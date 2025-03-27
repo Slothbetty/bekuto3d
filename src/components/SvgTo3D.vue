@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Group, Shape } from 'three'
+import type { Group, Mesh, Shape } from 'three'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { Box3, Color, Vector3 } from 'three'
@@ -7,6 +7,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
+import { exportTo3MF } from '~/composables/3mf-exporter'
 
 interface ShapeWithColor {
   shape: Shape
@@ -31,6 +32,7 @@ const groupRef = useTemplateRef<Group>('group')
 const stlUrl = ref('')
 const objUrl = ref('')
 const gltfUrl = ref('')
+const the3mfUrl = ref('')
 const fileName = ref('')
 const baseDepth = 2.1
 const reliefDepth = 2
@@ -233,6 +235,15 @@ function handleExportGLTF() {
   }, {
     binary: true,
   })
+}
+
+async function handleExport3MF() {
+  const group = modelGroup.value
+  if (!group)
+    return
+
+  const result = await exportTo3MF(Array.from(group.children as Mesh[]))
+  the3mfUrl.value = URL.createObjectURL(result)
 }
 
 // 调整相机参数
@@ -457,7 +468,7 @@ onMounted(() => {
           <div i-iconoir-floppy-disk-arrow-in />
           Export
         </h2>
-        <div v-if="!(stlUrl || objUrl || gltfUrl)" flex="~ gap-2">
+        <div v-if="!(stlUrl || objUrl || gltfUrl || the3mfUrl)" flex="~ gap-2">
           <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportSTL">
             STL
           </button>
@@ -466,6 +477,9 @@ onMounted(() => {
           </button>
           <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportGLTF">
             GLTF
+          </button>
+          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExport3MF">
+            3MF
           </button>
         </div>
         <div v-else flex="~ gap-2" text-white>
@@ -495,6 +509,15 @@ onMounted(() => {
             @click="gltfUrl = ''"
           >
             Download The GLTF File
+          </a>
+          <a
+            v-if="the3mfUrl"
+            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
+            :href="the3mfUrl"
+            :download="`${fileName}.3mf`"
+            @click="the3mfUrl = ''"
+          >
+            Download The 3MF File
           </a>
           <button title="close" text-xl p2 rounded bg-gray cursor-pointer @click="() => { stlUrl = ''; objUrl = ''; gltfUrl = '' }">
             <div i-carbon:close />
