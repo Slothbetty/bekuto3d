@@ -266,7 +266,7 @@ const materialConfig = ref({
 // 添加默认文件路径常量
 const DEFAULT_SVG = '/model/bekuto3d.svg'
 
-const isDefaultSvg = computed(() => fileName.value === 'bekuto3d.svg')
+const isDefaultSvg = computed(() => fileName.value === 'default-bekuto3d.svg')
 
 const defaultSvgOffsetList = [0, 2.1]
 const defaultSvgDepthList = [2.1, 0, 3, 2, 2, 4, 2, 2, 2]
@@ -277,7 +277,7 @@ async function loadDefaultSvg() {
     const svgData = await response.text()
     const svgParsed = loader.parse(svgData)
 
-    fileName.value = 'bekuto3d.svg'
+    fileName.value = 'default-bekuto3d.svg'
     svgShapes.value = svgParsed.paths.map((path) => {
       const shapes = SVGLoader.createShapes(path)
       const color = path.userData?.style?.fill || '#FFA500'
