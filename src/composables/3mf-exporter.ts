@@ -25,25 +25,61 @@ interface MaterialInfo {
 }
 
 /**
+ * 打印床配置接口
+ */
+interface PrintConfig {
+  printer_name: string // 打印机名称
+  filament: string // 打印材料
+  printableWidth: number // 打印床宽度 (X轴)
+  printableDepth: number // 打印床深度 (Y轴)
+  printableHeight: number // 打印高度 (Z轴)
+  printableArea: string[] // 打印区域坐标
+  printerSettingsId: string // 打印机设置ID
+}
+
+/**
  * 将 Three.js 的 Group 或 Mesh 导出为 3MF 文件格式 (BambuStudio 兼容格式)
  * @param object Three.js Group 对象或 Mesh 数组
+ * @param printJobConfig 打印床配置，可选
  * @returns Blob 数据
  */
-export async function exportTo3MF(object: Group | Object3D): Promise<Blob> {
+export async function exportTo3MF(
+  object: Group | Object3D,
+  printJobConfig?: Partial<PrintConfig>,
+): Promise<Blob> {
   const zip = new JSZip()
+
+  // 默认的打印床配置 (基于 Bambu Lab A1 mini)
+  const defaultPrintConfig: PrintConfig = {
+    printer_name: 'Bambu Lab A1 mini',
+    filament: 'Bambu PLA Basic @BBL A1M',
+    printableWidth: 180,
+    printableDepth: 180,
+    printableHeight: 180,
+    printableArea: ['0x0', '180x0', '180x180', '0x180'],
+    printerSettingsId: 'Bambu Lab A1 mini 0.4 nozzle',
+  }
+
+  // 合并用户提供的配置与默认配置
+  const printConfig = { ...defaultPrintConfig, ...printJobConfig }
 
   // 收集所有组件和材质信息
   const components: ComponentInfo[] = []
   const materials: MaterialInfo[] = []
 
-  // 递归处理所有网格
+  // 递归处理所有网格并计算模型边界和中心位置
   collectComponents(object, components, materials)
+  const boundingBox = calculateBoundingBox(components)
+  const modelCenter = calculateModelCenter(boundingBox)
+
+  // 计算将模型放置在打印床中心所需的变换
+  const transform = calculateCenteringTransform(modelCenter, boundingBox, printConfig)
 
   // 创建 3MF 所需的基本文件结构
-  const mainModelXml = createMainModelXML(components)
+  const mainModelXml = createMainModelXML(components, transform)
   const objectModelXml = createObjectModelXML(components)
   const modelSettingsXml = createModelSettingsXML(components)
-  const projectSettingsConfig = createProjectSettingsConfig(materials)
+  const projectSettingsConfig = createProjectSettingsConfig(materials, printConfig)
 
   // 将文件添加到ZIP中
   zip.file('[Content_Types].xml', contentTypesXML())
@@ -162,10 +198,74 @@ function collectComponents(
   })
 }
 
+interface BoundingBox { min: { x: number, y: number, z: number }, max: { x: number, y: number, z: number } }
+interface ModelCenter { x: number, y: number, z: number }
+
+/**
+ * 计算模型的边界框
+ */
+function calculateBoundingBox(components: ComponentInfo[]) {
+  if (components.length === 0) {
+    return { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } }
+  }
+
+  // 初始化边界值为第一个顶点
+  const firstVertex = components[0].vertices[0] || { x: 0, y: 0, z: 0 }
+  const min = { x: firstVertex.x, y: firstVertex.y, z: firstVertex.z }
+  const max = { x: firstVertex.x, y: firstVertex.y, z: firstVertex.z }
+
+  // 遍历所有组件的所有顶点
+  for (const component of components) {
+    for (const vertex of component.vertices) {
+      min.x = Math.min(min.x, vertex.x)
+      min.y = Math.min(min.y, vertex.y)
+      min.z = Math.min(min.z, vertex.z)
+      max.x = Math.max(max.x, vertex.x)
+      max.y = Math.max(max.y, vertex.y)
+      max.z = Math.max(max.z, vertex.z)
+    }
+  }
+
+  return { min, max }
+}
+
+/**
+ * 计算模型中心点
+ */
+function calculateModelCenter(boundingBox: BoundingBox) {
+  return {
+    x: (boundingBox.min.x + boundingBox.max.x) / 2,
+    y: (boundingBox.min.y + boundingBox.max.y) / 2,
+    z: (boundingBox.min.z + boundingBox.max.z) / 2,
+  }
+}
+
+/**
+ * 计算使模型居中的变换矩阵
+ */
+function calculateCenteringTransform(modelCenter: ModelCenter, boundingBox: BoundingBox, printBed: PrintConfig) {
+  // 计算打印床中心
+  const bedCenter = {
+    x: printBed.printableWidth / 2,
+    y: printBed.printableDepth / 2,
+    z: 0, // 通常Z坐标为0，模型放在打印床表面
+  }
+
+  // 计算需要移动的距离
+  const translation = {
+    x: bedCenter.x - modelCenter.x,
+    y: bedCenter.y - modelCenter.y,
+    z: bedCenter.z - boundingBox.min.z, // 将模型的底部放在打印床上
+  }
+
+  // 生成变换矩阵字符串 (3x4矩阵, 最后三个值是平移)
+  return `1 0 0 0 1 0 0 0 1 ${translation.x.toFixed(4)} ${translation.y.toFixed(4)} ${translation.z.toFixed(4)}`
+}
+
 /**
  * 创建主3dmodel.model文件的XML数据
  */
-function createMainModelXML(components: ComponentInfo[]): string {
+function createMainModelXML(components: ComponentInfo[], transform: string): string {
   const model = {
     model: {
       '@_unit': 'millimeter',
@@ -198,7 +298,7 @@ function createMainModelXML(components: ComponentInfo[]): string {
         'item': {
           '@_objectid': '97',
           '@_p:uuid': `${generateUUID()}2`,
-          '@_transform': '1 0 0 0 1 0 0 0 1 0 0 0',
+          '@_transform': transform,
           '@_printable': '1',
         },
       },
@@ -303,7 +403,7 @@ ${partsXml}
 /**
  * 创建项目设置配置文件
  */
-function createProjectSettingsConfig(materials: MaterialInfo[]): string {
+function createProjectSettingsConfig(materials: MaterialInfo[], printConfig: PrintConfig): string {
   // 从材质中提取颜色
   const colors = materials.map((m) => {
     return rgbToHexColor(m.color)
@@ -315,18 +415,18 @@ function createProjectSettingsConfig(materials: MaterialInfo[]): string {
   }
 
   const projectSettings = {
-    printable_area: ['0x0', '180x0', '180x180', '0x180'],
-    printable_height: '180',
+    printable_area: printConfig.printableArea,
+    printable_height: printConfig.printableHeight.toString(),
     bed_exclude_area: [],
     filament_colour: colors,
-    filament_settings_id: Array.from({ length: colors.length }).fill('Bambu PLA Basic @BBL A1M'),
+    filament_settings_id: Array.from({ length: colors.length }).fill(printConfig.filament),
     filament_diameter: Array.from({ length: colors.length }).fill('1.75'),
     filament_is_support: Array.from({ length: colors.length }).fill('0'),
-    printer_model: 'Bambu Lab A1 mini',
+    printer_model: printConfig.printer_name,
     layer_height: '0.2',
     wall_loops: '2',
     sparse_infill_density: '15%',
-    printer_settings_id: 'Bambu Lab A1 mini 0.4 nozzle',
+    printer_settings_id: printConfig.printerSettingsId,
     printer_variant: '0.4',
     nozzle_diameter: ['0.4'],
     enable_support: '0',
