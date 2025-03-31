@@ -35,6 +35,7 @@ interface PrintConfig {
   printableHeight: number // 打印高度 (Z轴)
   printableArea: string[] // 打印区域坐标
   printerSettingsId: string // 打印机设置ID
+  printSettingsId: string // 打印设置ID
 }
 
 /**
@@ -49,15 +50,16 @@ export async function exportTo3MF(
 ): Promise<Blob> {
   const zip = new JSZip()
 
-  // 默认的打印床配置 (基于 Bambu Lab A1 mini)
+  // 默认的打印床配置 (基于 Bambu Lab A1)
   const defaultPrintConfig: PrintConfig = {
-    printer_name: 'Bambu Lab A1 mini',
-    filament: 'Bambu PLA Basic @BBL A1M',
-    printableWidth: 180,
-    printableDepth: 180,
-    printableHeight: 180,
-    printableArea: ['0x0', '180x0', '180x180', '0x180'],
-    printerSettingsId: 'Bambu Lab A1 mini 0.4 nozzle',
+    printer_name: 'Bambu Lab A1',
+    filament: 'Bambu PLA Basic @BBL A1',
+    printableWidth: 256,
+    printableDepth: 256,
+    printableHeight: 256,
+    printableArea: ['0x0', '256x0', '256x256', '0x256'],
+    printerSettingsId: 'Bambu Lab A1 0.4 nozzle',
+    printSettingsId: '0.20mm Standard @BBL A1',
   }
 
   // 合并用户提供的配置与默认配置
@@ -436,7 +438,7 @@ function createProjectSettingsConfig(materials: MaterialInfo[], printConfig: Pri
     nozzle_diameter: ['0.4'],
     enable_support: '0',
     support_type: 'normal(auto)',
-    print_settings_id: '0.20mm Standard',
+    print_settings_id: printConfig.printSettingsId,
   }
 
   return JSON.stringify(projectSettings)
