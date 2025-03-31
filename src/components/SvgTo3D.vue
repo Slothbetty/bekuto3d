@@ -3,6 +3,7 @@ import type { ShapeWithColor } from '../composables/useSvgLoader'
 import { useModelSize } from '../composables/useModelSize'
 import { useSvgLoader } from '../composables/useSvgLoader'
 import FileDropZone from './FileDropZone.vue'
+import IconInput from './IconInput.vue'
 import ModelExporter from './ModelExporter.vue'
 import ModelRenderer from './ModelRenderer.vue'
 
@@ -85,17 +86,6 @@ onMounted(() => {
   loadDefaultSvg()
 })
 
-function updateDepth(index: number, depth: number) {
-  if (svgShapes.value[index])
-    svgShapes.value[index].depth = depth
-}
-
-// 添加更新startZ的函数
-function updateStartZ(index: number, startZ: number) {
-  if (svgShapes.value[index])
-    svgShapes.value[index].startZ = startZ
-}
-
 // Monitor model changes
 watchModelSizeChanges(modelGroup, svgShapes)
 </script>
@@ -141,12 +131,13 @@ watchModelSizeChanges(modelGroup, svgShapes)
     />
     <template v-if="svgShapes.length && !isDefaultSvg">
       <div flex="~ gap-2 items-center">
-        <label i-iconoir-scale-frame-enlarge inline-block />
-        <input
-          v-model.lazy.number="size"
+        <IconInput
+          v-model:value="size"
+          icon="i-iconoir-scale-frame-enlarge"
           type="number"
-          class="px-1 border-b w-20 inline-block"
-        >
+          title="Scale"
+          class="w-30"
+        />
         <div flex-1 />
         <div>unit: <span text-blue>mm</span></div>
       </div>
@@ -163,30 +154,26 @@ watchModelSizeChanges(modelGroup, svgShapes)
             />
             <pre min-w-5>{{ index + 1 }}</pre>
           </div>
-          <div flex="~ gap-2 items-center" title="起点位置">
-            <label i-iconoir-position inline-block />
-            <input
-              type="number"
-              min="-10"
-              step="0.1"
-              max="10"
-              :value="item.startZ"
-              class="px-1 border-b w-20 inline-block"
-              @change="e => updateStartZ(index, +(e.target as HTMLInputElement).value)"
-            >
-          </div>
-          <div flex="~ gap-2 items-center" title="拉伸深度">
-            <label i-iconoir-extrude inline-block />
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              max="10"
-              :value="item.depth"
-              class="px-1 border-b w-20 inline-block"
-              @change="e => updateDepth(index, +(e.target as HTMLInputElement).value)"
-            >
-          </div>
+          <IconInput
+            v-model:value="item.startZ"
+            icon="i-iconoir-position"
+            type="number"
+            :min="-10"
+            :max="10"
+            :step="0.1"
+            title="起点位置"
+            class="flex-1"
+          />
+          <IconInput
+            v-model:value="item.depth"
+            icon="i-iconoir-extrude"
+            type="number"
+            :min="0"
+            :max="10"
+            :step="0.1"
+            title="拉伸深度"
+            class="flex-1"
+          />
         </div>
       </div>
       <div v-if="modelSize.width" flex="~ gap-2 text-sm items-center" title="Size">

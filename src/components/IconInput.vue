@@ -1,0 +1,44 @@
+<script lang="ts" setup>
+interface Props {
+  icon: string
+  value: number
+  type?: 'number' | 'text'
+  min?: number
+  max?: number
+  step?: number
+  title?: string
+  class?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  min: -Infinity,
+  max: Infinity,
+  step: 1,
+  title: '',
+  class: '',
+})
+
+const emit = defineEmits<{
+  (e: 'update:value', value: number): void
+}>()
+
+function handleChange(e: Event) {
+  const value = +(e.target as HTMLInputElement).value
+  emit('update:value', value)
+}
+</script>
+
+<template>
+  <label class="inline-flex gap-2 items-center" :class="[props.class]" :title="title">
+    <span class="h-[1.2em] min-h-[1.2em] min-w-[1.2em] w-[1.2em]" :class="[icon]" inline-block />
+    <input
+      :type="type || 'text'"
+      :min="min"
+      :max="max"
+      :step="step"
+      :value="value"
+      class="px-1 border-b flex-1 w-full inline-block"
+      @change="handleChange"
+    >
+  </label>
+</template>
