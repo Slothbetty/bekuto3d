@@ -47,7 +47,6 @@ const props = defineProps<{
   curveSegments: number
   materialConfig: MaterialConfig
   controlsConfig: ControlsConfig
-  selectedShapeIndex: number | null
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +54,10 @@ const emit = defineEmits<{
   (e: 'update:modelOffset', offset: ModelOffset): void
   (e: 'modelLoaded'): void
 }>()
+
+const selectedShapeIndex = defineModel<number | null>('selectedShapeIndex', {
+  default: null,
+})
 
 const cameraPosition = defineModel<[number, number, number]>('cameraPosition', {
   default: () => [0, 0, 100],
@@ -114,12 +117,12 @@ function fixFloat(num: number) {
 }
 
 // 计算实际显示的形状
-const shownShapes = computed(() => suppressZFighting(props.shapes).filter(i => i.depth))
+const shownShapes = computed(() => suppressZFighting(props.shapes))
 
 // 获取形状的材质配置
 function getShapeMaterialConfig(index: number) {
-  const hasSelected = props.selectedShapeIndex !== null
-  const isSelected = index === props.selectedShapeIndex
+  const hasSelected = selectedShapeIndex.value !== null
+  const isSelected = index === selectedShapeIndex.value
   const baseConfig = {
     shininess: props.materialConfig.shininess,
     transparent: props.materialConfig.transparent,
@@ -187,6 +190,16 @@ function calculateModelSize() {
   })
 }
 
+function addHoverModel(index: number, event: PointerEvent) {
+  selectedShapeIndex.value = index
+  event.stopPropagation()
+}
+
+function removeHoverModel(_: number, event: PointerEvent) {
+  selectedShapeIndex.value = null
+  event.stopPropagation()
+}
+
 // 暴露方法给父组件
 defineExpose({
   modelGroup,
@@ -210,6 +223,8 @@ defineExpose({
         :key="index"
         :position="[modelOffset.x, modelOffset.y, modelOffset.z + item.startZ]"
         :render-order="index + 1"
+        @pointer-enter="addHoverModel(index, $event as unknown as PointerEvent)"
+        @pointer-leave="removeHoverModel(index, $event as unknown as PointerEvent)"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {

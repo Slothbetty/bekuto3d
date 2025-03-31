@@ -39,6 +39,8 @@ const { createShapesWithColor } = useSvgLoader()
 
 const modelGroup = computed(() => modelRendererRef.value?.modelGroup ?? null)
 
+const shownShapes = computed(() => svgShapes.value.filter(i => i.depth))
+
 function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
   isDefaultSvg.value = false
   svgShapes.value = createShapesWithColor(svgData, {
@@ -97,18 +99,30 @@ const cameraPosition = ref<[number, number, number]>([-50, 50, 100])
 function formatSelectedShapeIndex(index: number | null) {
   if (index === null)
     return null
-  const shapes = svgShapes.value.filter(i => i.depth)
-  const newIndex = shapes.findIndex(s => s === svgShapes.value[index])
+  const newIndex = shownShapes.value.findIndex(s => s === svgShapes.value[index])
   return newIndex === -1 ? null : newIndex
 }
 
-const selectedShownShapeIndex = computed(() => {
-  if (isExporting.value)
-    return null
-  if (editingInputIndex.value !== null)
-    return formatSelectedShapeIndex(editingInputIndex.value)
-  return formatSelectedShapeIndex(selectedShapeIndex.value)
+const selectedShownShapeIndex = computed({
+  get: () => {
+    if (isExporting.value)
+      return null
+    if (editingInputIndex.value !== null)
+      return formatSelectedShapeIndex(editingInputIndex.value)
+    return formatSelectedShapeIndex(selectedShapeIndex.value)
+  },
+  set: (index: number) => {
+    if (isDefaultSvg.value || isExporting.value)
+      return false
+    const newIndex = svgShapes.value.findIndex(i => i === shownShapes.value[index])
+    selectedShapeIndex.value = newIndex
+  },
 })
+
+function handleMeshClick(index: number) {
+  // handle mesh click to focus on the input
+  editingInputIndex.value = index
+}
 </script>
 
 <template>
@@ -117,10 +131,10 @@ const selectedShownShapeIndex = computed(() => {
     v-model:model-size="modelSize"
     v-model:model-offset="modelOffset"
     v-model:camera-position="cameraPosition"
-    :shapes="svgShapes"
+    v-model:selected-shape-index="selectedShownShapeIndex"
+    :shapes="shownShapes"
     :scale="scale"
     :curve-segments="curveSegments"
-    :selected-shape-index="selectedShownShapeIndex"
     :material-config="{
       shininess: 100, // 增加高光度
       transparent: true,
@@ -133,6 +147,7 @@ const selectedShownShapeIndex = computed(() => {
       maxDistance: 1000,
     }"
     @model-loaded="() => {}"
+    @mesh-click="handleMeshClick"
   />
   <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">
     <div flex="~ col gap-2">
