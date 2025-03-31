@@ -16,6 +16,9 @@ const curveSegments = ref(64) // 模型曲线部分的细分程度
 const fileName = ref('')
 const svgShapes = ref<ShapeWithColor[]>([])
 const modelRendererRef = ref<InstanceType<typeof ModelRenderer>>()
+const selectedShapeIndex = ref<number | null>(null)
+const editingInputIndex = ref<number | null>(null)
+const isExporting = ref<boolean>(false)
 
 // 使用 useModelSize composable
 const {
@@ -88,6 +91,24 @@ onMounted(() => {
 
 // Monitor model changes
 watchModelSizeChanges(modelGroup, svgShapes)
+
+const cameraPosition = ref<[number, number, number]>([-50, 50, 100])
+
+function formatSelectedShapeIndex(index: number | null) {
+  if (index === null)
+    return null
+  const shapes = svgShapes.value.filter(i => i.depth)
+  const newIndex = shapes.findIndex(s => s === svgShapes.value[index])
+  return newIndex === -1 ? null : newIndex
+}
+
+const selectedShownShapeIndex = computed(() => {
+  if (isExporting.value)
+    return null
+  if (editingInputIndex.value !== null)
+    return formatSelectedShapeIndex(editingInputIndex.value)
+  return formatSelectedShapeIndex(selectedShapeIndex.value)
+})
 </script>
 
 <template>
@@ -95,15 +116,16 @@ watchModelSizeChanges(modelGroup, svgShapes)
     ref="modelRendererRef"
     v-model:model-size="modelSize"
     v-model:model-offset="modelOffset"
+    v-model:camera-position="cameraPosition"
     :shapes="svgShapes"
     :scale="scale"
     :curve-segments="curveSegments"
+    :selected-shape-index="selectedShownShapeIndex"
     :material-config="{
       shininess: 100, // 增加高光度
       transparent: true,
       wireframe: false,
     }"
-    :camera-position="[-50, 50, 100]"
     :controls-config="{
       enableDamping: true,
       dampingFactor: 0.05,
@@ -141,13 +163,21 @@ watchModelSizeChanges(modelGroup, svgShapes)
         <div flex-1 />
         <div>unit: <span text-blue>mm</span></div>
       </div>
-      <div flex="~ col gap-4">
+      <div flex="~ col">
         <div
           v-for="(item, index) in svgShapes"
           :key="index"
           flex="~ gap-4"
+          class="px-2 border rounded transition-colors duration-200"
+          :class="[
+            (editingInputIndex !== null ? editingInputIndex === index : selectedShapeIndex === index)
+              ? 'dark:border-white border-black'
+              : 'border-transparent hover:border-gray-500/50',
+          ]"
+          @mouseenter="selectedShapeIndex = index"
+          @mouseleave="selectedShapeIndex = null"
         >
-          <div flex="~ gap-2 items-center" :title="`Shape ${index + 1}`">
+          <div flex="~ gap-2 items-center py-3" :title="`Shape ${index + 1}`">
             <div
               class="border rounded h-5 min-h-5 min-w-5 w-5"
               :style="{ background: `#${item.color.getHexString()}` }"
@@ -162,7 +192,9 @@ watchModelSizeChanges(modelGroup, svgShapes)
             :max="10"
             :step="0.1"
             title="起点位置"
-            class="flex-1"
+            class="py-3 flex-1"
+            @focus="editingInputIndex = index"
+            @blur="editingInputIndex = null"
           />
           <IconInput
             v-model:value="item.depth"
@@ -172,7 +204,9 @@ watchModelSizeChanges(modelGroup, svgShapes)
             :max="10"
             :step="0.1"
             title="拉伸深度"
-            class="flex-1"
+            class="py-3 flex-1"
+            @focus="editingInputIndex = index"
+            @blur="editingInputIndex = null"
           />
         </div>
       </div>
@@ -183,6 +217,7 @@ watchModelSizeChanges(modelGroup, svgShapes)
         <div>L: {{ modelSize.depth }}</div>
       </div>
       <ModelExporter
+        v-model:is-exporting="isExporting"
         :model-group="modelGroup"
         :file-name="isDefaultSvg ? 'default-bekuto3d.svg' : fileName"
       />

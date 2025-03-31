@@ -46,8 +46,8 @@ const props = defineProps<{
   scale: number
   curveSegments: number
   materialConfig: MaterialConfig
-  cameraPosition: [number, number, number]
   controlsConfig: ControlsConfig
+  selectedShapeIndex: number | null
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +55,10 @@ const emit = defineEmits<{
   (e: 'update:modelOffset', offset: ModelOffset): void
   (e: 'modelLoaded'): void
 }>()
+
+const cameraPosition = defineModel<[number, number, number]>('cameraPosition', {
+  default: () => [0, 0, 100],
+})
 
 const groupRef = useTemplateRef<Group>('group')
 const modelGroup = computed(() => toRaw(groupRef.value))
@@ -111,6 +115,39 @@ function fixFloat(num: number) {
 
 // 计算实际显示的形状
 const shownShapes = computed(() => suppressZFighting(props.shapes).filter(i => i.depth))
+
+// 获取形状的材质配置
+function getShapeMaterialConfig(index: number) {
+  const hasSelected = props.selectedShapeIndex !== null
+  const isSelected = index === props.selectedShapeIndex
+  const baseConfig = {
+    shininess: props.materialConfig.shininess,
+    transparent: props.materialConfig.transparent,
+    wireframe: props.materialConfig.wireframe,
+    depthWrite: true,
+  }
+
+  if (hasSelected) {
+    if (isSelected) {
+      return {
+        ...baseConfig,
+        opacity: 1,
+        // depthTest: true,
+        depthWrite: true,
+      }
+    }
+    else {
+      return {
+        ...baseConfig,
+        opacity: 0.2,
+        // depthTest: true,
+        depthWrite: false,
+      }
+    }
+  }
+
+  return baseConfig
+}
 
 // 监听模型变化并更新尺寸
 watch([() => groupRef.value, () => props.scale, () => props.shapes.map(i => [i.depth, i.startZ])], () => {
@@ -182,11 +219,11 @@ defineExpose({
           }]"
         />
         <TresMeshPhongMaterial
-          v-bind="materialConfig"
           :color="item.color"
           :opacity="item.opacity"
           :polygon-offset="!!item.polygonOffset"
           :polygon-offset-factor="item.polygonOffset"
+          v-bind="getShapeMaterialConfig(index)"
         />
       </TresMesh>
     </TresGroup>

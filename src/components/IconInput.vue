@@ -20,11 +20,29 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'update:value', value: number): void
+  (e: 'input', value: number): void
+  (e: 'change', value: number): void
+  (e: 'focus'): void
+  (e: 'blur'): void
 }>()
+
+function handleInput(e: Event) {
+  const value = +(e.target as HTMLInputElement).value
+  emit('update:value', value)
+  emit('input', value)
+}
 
 function handleChange(e: Event) {
   const value = +(e.target as HTMLInputElement).value
-  emit('update:value', value)
+  emit('change', value)
+}
+
+function handleFocus() {
+  emit('focus')
+}
+
+function handleBlur() {
+  emit('blur')
 }
 </script>
 
@@ -38,7 +56,10 @@ function handleChange(e: Event) {
       :step="step"
       :value="value"
       class="px-1 border-b flex-1 w-full inline-block"
+      @input="handleInput"
       @change="handleChange"
+      @focus="handleFocus"
+      @blur="handleBlur"
     >
   </label>
 </template>

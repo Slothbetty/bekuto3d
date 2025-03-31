@@ -19,6 +19,8 @@ const props = defineProps<{
   fileName: string
 }>()
 
+const isExporting = defineModel<boolean>('isExporting', { default: false })
+
 // 导出格式配置
 const EXPORT_FORMATS: Record<ExportFormat, ExportConfig> = {
   stl: {
@@ -112,7 +114,14 @@ const exportHandlers = {
 
 // 统一的导出处理函数
 async function handleExport(format: ExportFormat) {
-  await exportHandlers[format]()
+  isExporting.value = true
+  await nextTick()
+  try {
+    await exportHandlers[format]()
+  }
+  finally {
+    isExporting.value = false
+  }
 }
 
 // 清除所有URL
