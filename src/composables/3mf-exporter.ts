@@ -104,7 +104,6 @@ function collectComponents(
 ): void {
   object.updateMatrixWorld(true)
 
-  // 处理网格
   if (object.type === 'Mesh') {
     const mesh = object as Mesh
     const geometry = mesh.geometry
@@ -144,7 +143,6 @@ function collectComponents(
       }
     }
 
-    // 创建新组件
     const componentId = 100 + components.length
     const component: ComponentInfo = {
       id: componentId,
@@ -154,38 +152,45 @@ function collectComponents(
       name: mesh.name || `Default-${componentId}`,
     }
 
-    // 处理顶点
+    // 为当前 mesh 创建独立的顶点映射
+    const vertexMap = new Map<string, number>()
     const worldMatrix = mesh.matrixWorld
-    for (let i = 0; i < positionAttr.count; i++) {
+
+    // 处理当前 mesh 的顶点
+    const processVertex = (vertexIndex: number) => {
       const vertex = new Vector3()
-      vertex.fromBufferAttribute(positionAttr, i)
+      vertex.fromBufferAttribute(positionAttr, vertexIndex)
       vertex.applyMatrix4(worldMatrix)
-      component.vertices.push({
-        x: vertex.x,
-        y: vertex.y,
-        z: vertex.z,
-      })
+
+      const vertexKey = `${vertex.x},${vertex.y},${vertex.z}`
+
+      if (!vertexMap.has(vertexKey)) {
+        vertexMap.set(vertexKey, component.vertices.length)
+        component.vertices.push({ x: vertex.x, y: vertex.y, z: vertex.z })
+      }
+
+      return vertexMap.get(vertexKey)!
     }
 
     // 处理三角形
     if (indexAttr) {
       // 有索引的几何体
       for (let i = 0; i < indexAttr.count; i += 3) {
-        component.triangles.push({
-          v1: indexAttr.getX(i),
-          v2: indexAttr.getX(i + 1),
-          v3: indexAttr.getX(i + 2),
-        })
+        const v1 = processVertex(indexAttr.getX(i))
+        const v2 = processVertex(indexAttr.getX(i + 1))
+        const v3 = processVertex(indexAttr.getX(i + 2))
+
+        component.triangles.push({ v1, v2, v3 })
       }
     }
     else {
       // 无索引的几何体
       for (let i = 0; i < positionAttr.count; i += 3) {
-        component.triangles.push({
-          v1: i,
-          v2: i + 1,
-          v3: i + 2,
-        })
+        const v1 = processVertex(i)
+        const v2 = processVertex(i + 1)
+        const v3 = processVertex(i + 2)
+
+        component.triangles.push({ v1, v2, v3 })
       }
     }
 
