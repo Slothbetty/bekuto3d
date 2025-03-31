@@ -8,6 +8,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    FileDropZone: typeof import('./src/components/FileDropZone.vue')['default']
     ModelExporter: typeof import('./src/components/ModelExporter.vue')['default']
     ModelRenderer: typeof import('./src/components/ModelRenderer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import type { Group } from 'three'
 import type { ShapeWithColor } from '../composables/useSvgLoader'
-import { useDropZone, useEventListener } from '@vueuse/core'
 import { Box3, Vector3 } from 'three'
 import { useSvgLoader } from '../composables/useSvgLoader'
+import FileDropZone from './FileDropZone.vue'
 import ModelExporter from './ModelExporter.vue'
 import ModelRenderer from './ModelRenderer.vue'
 
@@ -88,63 +88,16 @@ async function loadDefaultSvg() {
   }
 }
 
-const dragEnterCount = ref(0)
-const isGlobalDragging = ref(false)
-useEventListener('dragenter', (e) => {
-  e.preventDefault()
-  dragEnterCount.value++
-  if (dragEnterCount.value === 1) {
-    isGlobalDragging.value = true
-  }
-  const dataTransfer = e.dataTransfer
-  if (!dataTransfer)
+function handleFileSelected(files: File[]) {
+  if (files.length === 0)
     return
-  dataTransfer.dropEffect = 'copy'
-  if (dataTransfer.files.length && dataTransfer.items[0].type === 'image/svg+xml') {
-    isGlobalDragging.value = true
-  }
-})
-useEventListener('dragover', (e) => {
-  e.preventDefault()
-  e.stopPropagation()
-})
-useEventListener('drop', (e) => {
-  e.preventDefault()
-  e.stopPropagation()
-  isGlobalDragging.value = false
-  dragEnterCount.value = 0
-})
-useEventListener('dragleave', (e) => {
-  e.preventDefault()
-  dragEnterCount.value--
-  if (dragEnterCount.value === 0) {
-    isGlobalDragging.value = false
-  }
-})
-
-function handleFileSelect(event: Event) {
-  const inputEl = event.target as HTMLInputElement
-  const file = inputEl.files?.[0]
-  if (!file)
-    return
-  fileName.value = file.name
-  inputEl.value = ''
-  readFileAndConvert(file)
+  fileName.value = files[0].name
+  readFileAndConvert(files[0])
 }
 
-function onDrop(file: File[] | null) {
-  if (!file || file.length === 0)
-    return
-  fileName.value = file[0].name
-  readFileAndConvert(file[0])
-}
-
-const dropZone = ref<HTMLElement>()
-const { isOverDropZone } = useDropZone(dropZone, {
-  onDrop,
-  dataTypes: ['image/svg+xml'],
-  multiple: false,
-  preventDefaultForUnhandled: true,
+// 组件加载时自动加载默认文件
+onMounted(() => {
+  loadDefaultSvg()
 })
 
 function calculateModelSize() {
@@ -213,11 +166,6 @@ const materialConfig = ref({
   transparent: true,
   wireframe: false,
 })
-
-// 组件加载时自动加载默认文件
-onMounted(() => {
-  loadDefaultSvg()
-})
 </script>
 
 <template>
@@ -244,36 +192,12 @@ onMounted(() => {
         Convert SVG files to 3D models
       </p>
     </div>
-    <label
-      ref="dropZone" flex="~ items-center"
-      p2 border rounded cursor-pointer relative bg="black/10 dark:white/20 hover:black/20 dark:hover:white/30" title="Select SVG File" :class="{
-        'border-dashed !bg-[#b5df4a] min-h-40 justify-center sticky top-10 z-10 shadow-xl': isGlobalDragging,
-        'min-h-40': isOverDropZone,
-      }"
-    >
-      <input
-        type="file"
-        accept=".svg"
-        class="op0 inset-0 absolute z--1"
-        @change="handleFileSelect"
-      >
-      <template v-if="isGlobalDragging && isOverDropZone">
-        <span i-carbon:document-add mr-2 inline-block />
-        <span>Drop it!</span>
-      </template>
-      <template v-else-if="isGlobalDragging">
-        <span i-carbon:document-add mr-2 inline-block />
-        <span>Drag to here!</span>
-      </template>
-      <template v-else-if="fileName && !isDefaultSvg">
-        <span i-carbon:document mr-2 inline-block />
-        <span>{{ fileName }}</span>
-      </template>
-      <template v-else>
-        <span i-carbon:document-add mr-2 inline-block />
-        <span>Click or drop SVG file</span>
-      </template>
-    </label>
+    <FileDropZone
+      v-model:filename="fileName"
+      :accept="['image/svg+xml']"
+      :default-text="isDefaultSvg ? 'Click or drop SVG file' : undefined"
+      @file-selected="handleFileSelected"
+    />
     <template v-if="svgShapes.length && !isDefaultSvg">
       <div flex="~ gap-2 items-center">
         <label i-iconoir-scale-frame-enlarge inline-block />
