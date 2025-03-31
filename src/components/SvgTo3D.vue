@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { ShapeWithColor } from '../composables/useSvgLoader'
+import { Color } from 'three'
 import { useModelSize } from '../composables/useModelSize'
 import { useSvgLoader } from '../composables/useSvgLoader'
 import FileDropZone from './FileDropZone.vue'
@@ -141,6 +142,10 @@ function handleMeshClick(index: number) {
     }
   })
 }
+
+function handleColorChange(index: number, color: string) {
+  svgShapes.value[index].color = new Color().setStyle(color)
+}
 </script>
 
 <template>
@@ -211,12 +216,21 @@ function handleMeshClick(index: number) {
           @mouseenter="selectedShapeIndex = index"
           @mouseleave="selectedShapeIndex = null"
         >
-          <div flex="~ gap-2 items-center py-3" :title="`Shape ${index + 1}`">
-            <div
-              class="border rounded h-5 min-h-5 min-w-5 w-5"
+          <div flex="~ gap-2 items-center py-3" relative :title="`Shape ${index + 1}`">
+            <label
+              class="border rounded h-5 min-h-5 min-w-5 w-5 cursor-pointer transition-all duration-200 has-focus:scale-120 has-hover:scale-110"
               :title="`Color: #${item.color.getHexString()}`"
               :style="{ background: `#${item.color.getHexString()}` }"
-            />
+              @focus="editingInputIndex = index"
+              @blur="editingInputIndex = null"
+            >
+              <input
+                type="color"
+                :value="`#${item.color.getHexString()}`"
+                class="op0 inset-0 absolute z--1"
+                @input="handleColorChange(index, ($event.target as HTMLInputElement).value)"
+              >
+            </label>
             <pre min-w-5>{{ index + 1 }}</pre>
           </div>
           <IconInput
