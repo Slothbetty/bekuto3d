@@ -101,23 +101,6 @@ function updateStartZ(index: number, startZ: number) {
 
 // Monitor model changes
 watchModelSizeChanges(modelGroup, svgShapes)
-
-// 调整相机参数
-const cameraPosition: [number, number, number] = [-50, 50, 100]
-const controlsConfig = {
-  enableDamping: true,
-  dampingFactor: 0.05,
-  minDistance: 0,
-  maxDistance: 1000,
-}
-
-// 添加材质相关参数
-const materialConfig = ref({
-  shininess: 100, // 增加高光度
-  specular: '#ffffffd0', // 添加镜面反射颜色
-  transparent: true,
-  wireframe: false,
-})
 </script>
 
 <template>
@@ -128,9 +111,18 @@ const materialConfig = ref({
     :shapes="svgShapes"
     :scale="scale"
     :curve-segments="curveSegments"
-    :material-config="materialConfig"
-    :camera-position="cameraPosition"
-    :controls-config="controlsConfig"
+    :material-config="{
+      shininess: 100, // 增加高光度
+      transparent: true,
+      wireframe: false,
+    }"
+    :camera-position="[-50, 50, 100]"
+    :controls-config="{
+      enableDamping: true,
+      dampingFactor: 0.05,
+      minDistance: 0,
+      maxDistance: 1000,
+    }"
     @model-loaded="() => {}"
   />
   <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">

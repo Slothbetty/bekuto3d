@@ -27,7 +27,7 @@ interface ModelOffset {
 
 interface MaterialConfig {
   shininess: number
-  specular: string
+  specular?: string
   transparent: boolean
   wireframe: boolean
 }
