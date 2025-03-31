@@ -173,6 +173,7 @@ const selectedShownShapeIndex = computed(() => {
             (editingInputIndex !== null ? editingInputIndex === index : selectedShapeIndex === index)
               ? 'dark:border-white border-black'
               : 'border-transparent hover:border-gray-500/50',
+            item.depth === 0 ? 'op-50' : '',
           ]"
           @mouseenter="selectedShapeIndex = index"
           @mouseleave="selectedShapeIndex = null"
