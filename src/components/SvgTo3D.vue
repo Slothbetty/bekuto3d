@@ -1,19 +1,11 @@
 <script lang="ts" setup>
-import type { Group, Shape } from 'three'
+import type { Group } from 'three'
+import type { ShapeWithColor } from '../composables/useSvgLoader'
 import { useDropZone, useEventListener } from '@vueuse/core'
-import { Box3, Color, Vector3 } from 'three'
-import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
+import { Box3, Vector3 } from 'three'
+import { useSvgLoader } from '../composables/useSvgLoader'
 import ModelExporter from './ModelExporter.vue'
 import ModelRenderer from './ModelRenderer.vue'
-
-interface ShapeWithColor {
-  shape: Shape
-  color: Color
-  opacity: number
-  depth: number
-  startZ: number
-  polygonOffset: number
-}
 
 interface ModelSize {
   width: number
@@ -21,18 +13,27 @@ interface ModelSize {
   depth: number
 }
 
+// 默认值
+const defaultDepth = 2
+const defaultSize = 37
+const curveSegments = ref(64) // 模型曲线部分的细分程度
+
+// 组件状态
 const groupRef = useTemplateRef<Group>('group')
 const fileName = ref('')
-const baseDepth = 2.1
-const reliefDepth = 2
-const defaultSize = 37
 const svgShapes = ref<ShapeWithColor[]>([])
-const scale = ref(1) // 添加缩放控制变量
-const curveSegments = ref(64)
+const scale = ref(1)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
-const loader = new SVGLoader()
 const modelRendererRef = ref<InstanceType<typeof ModelRenderer>>()
+
+// 默认模型信息
+const DEFAULT_SVG = '/model/bekuto3d.svg'
+const isDefaultSvg = computed(() => fileName.value === 'default-bekuto3d.svg')
+const defaultSvgOffsetList = [0, 2.1]
+const defaultSvgDepthList = [2.1, 0, 1, 1, 1, 2, 1, 1.4, 1.6]
+
+const { createShapesWithColor } = useSvgLoader()
 
 const modelGroup = computed(() => modelRendererRef.value?.modelGroup ?? null)
 const size = computed({
@@ -48,40 +49,43 @@ const size = computed({
   },
 })
 
+function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
+  svgShapes.value = createShapesWithColor(svgData, {
+    defaultDepth,
+    defaultStartZ: 0,
+    customShapes,
+  })
+
+  nextTick(async () => {
+    await nextTick()
+    size.value = defaultSize
+  })
+}
+
 function readFileAndConvert(file: File) {
   const reader = new FileReader()
   reader.onload = (e) => {
     const svgData = e.target?.result as string
-    const svgParsed = loader.parse(svgData)
-
-    svgShapes.value = svgParsed.paths.map((path) => {
-      const shapes = SVGLoader.createShapes(path)
-      // 获取 SVG 路径的颜色属性
-      const color = path.userData?.style?.fill || '#FFA500' // 默认橙色
-      const fillOpacity = path.userData?.style?.fillOpacity ?? 1
-
-      const shapesWithColor = shapes.map((shape) => {
-        return {
-          shape: markRaw(shape),
-          color: markRaw(new Color().setStyle(color)),
-          // depth: index > 0 ? reliefDepth : baseDepth,
-          // startZ: index > 0 ? baseDepth : 0,
-          depth: reliefDepth,
-          startZ: true ? 0 : baseDepth,
-          opacity: fillOpacity,
-          polygonOffset: 0,
-        } as ShapeWithColor
-      })
-
-      return shapesWithColor
-    }).flat(1)
-
-    nextTick(async () => {
-      await nextTick()
-      size.value = defaultSize
-    })
+    mountSVG(svgData)
   }
   reader.readAsText(file)
+}
+
+async function loadDefaultSvg() {
+  try {
+    const response = await fetch(DEFAULT_SVG)
+    const svgData = await response.text()
+    fileName.value = 'default-bekuto3d.svg'
+
+    mountSVG(svgData, (shapes, _) => shapes.map((item, index) => {
+      item.startZ = defaultSvgOffsetList[index] ?? defaultSvgOffsetList[defaultSvgOffsetList.length - 1] ?? 0
+      item.depth = defaultSvgDepthList[index] ?? 2
+      return item
+    }))
+  }
+  catch (error) {
+    console.error('加载默认 SVG 失败:', error)
+  }
 }
 
 const dragEnterCount = ref(0)
@@ -209,52 +213,6 @@ const materialConfig = ref({
   transparent: true,
   wireframe: false,
 })
-
-// 添加默认文件路径常量
-const DEFAULT_SVG = '/model/bekuto3d.svg'
-
-const isDefaultSvg = computed(() => fileName.value === 'default-bekuto3d.svg')
-
-const defaultSvgOffsetList = [0, 2.1]
-const defaultSvgDepthList = [2.1, 0, 1, 1, 1, 2, 1, 1.4, 1.6]
-// 添加加载默认文件的函数
-async function loadDefaultSvg() {
-  try {
-    const response = await fetch(DEFAULT_SVG)
-    const svgData = await response.text()
-    const svgParsed = loader.parse(svgData)
-
-    fileName.value = 'default-bekuto3d.svg'
-    svgShapes.value = svgParsed.paths.map((path) => {
-      const shapes = SVGLoader.createShapes(path)
-      const color = path.userData?.style?.fill || '#FFA500'
-      const fillOpacity = path.userData?.style?.fillOpacity ?? 1
-
-      return shapes.map((shape) => {
-        return {
-          shape: markRaw(shape),
-          color: markRaw(new Color().setStyle(color)),
-          startZ: 0,
-          depth: 0,
-          opacity: fillOpacity,
-          polygonOffset: 0,
-        } as ShapeWithColor
-      })
-    }).flat(1).map((item, index) => {
-      item.startZ = defaultSvgOffsetList[index] ?? defaultSvgOffsetList[defaultSvgOffsetList.length - 1] ?? 0
-      item.depth = defaultSvgDepthList[index] ?? 2
-      return item
-    })
-
-    nextTick(async () => {
-      await nextTick()
-      size.value = defaultSize
-    })
-  }
-  catch (error) {
-    console.error('加载默认 SVG 失败:', error)
-  }
-}
 
 // 组件加载时自动加载默认文件
 onMounted(() => {
