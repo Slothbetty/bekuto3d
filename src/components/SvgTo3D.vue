@@ -41,6 +41,8 @@ const modelGroup = computed(() => modelRendererRef.value?.modelGroup ?? null)
 
 const shownShapes = computed(() => svgShapes.value.filter(i => i.depth))
 
+const inputRefs = ref<(unknown & { focus: () => void } | null)[]>([])
+
 function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
   isDefaultSvg.value = false
   svgShapes.value = createShapesWithColor(svgData, {
@@ -99,8 +101,16 @@ const cameraPosition = ref<[number, number, number]>([-50, 50, 100])
 function formatSelectedShapeIndex(index: number | null) {
   if (index === null)
     return null
-  const newIndex = shownShapes.value.findIndex(s => s === svgShapes.value[index])
+  const newIndex = toShownIndex(index)
   return newIndex === -1 ? null : newIndex
+}
+
+function toShownIndex(index: number) {
+  return shownShapes.value.findIndex(s => s === svgShapes.value[index])
+}
+
+function toSvgIndex(index: number) {
+  return svgShapes.value.findIndex(s => s === shownShapes.value[index])
 }
 
 const selectedShownShapeIndex = computed({
@@ -114,14 +124,22 @@ const selectedShownShapeIndex = computed({
   set: (index: number) => {
     if (isDefaultSvg.value || isExporting.value)
       return false
-    const newIndex = svgShapes.value.findIndex(i => i === shownShapes.value[index])
+    const newIndex = toSvgIndex(index)
     selectedShapeIndex.value = newIndex
   },
 })
 
 function handleMeshClick(index: number) {
-  // handle mesh click to focus on the input
-  editingInputIndex.value = index
+  if (isDefaultSvg.value || isExporting.value)
+    return
+
+  const svgIndex = toSvgIndex(index)
+  nextTick(() => {
+    const targetInput = inputRefs.value[svgIndex]
+    if (targetInput) {
+      targetInput.focus()
+    }
+  })
 }
 </script>
 
@@ -201,6 +219,7 @@ function handleMeshClick(index: number) {
             <pre min-w-5>{{ index + 1 }}</pre>
           </div>
           <IconInput
+            :ref="el => inputRefs[index] = el as any"
             v-model:value="item.startZ"
             icon="i-iconoir-position"
             type="number"

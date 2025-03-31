@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { ref } from 'vue'
+
 interface Props {
   icon: string
   value: number
@@ -44,12 +46,24 @@ function handleFocus() {
 function handleBlur() {
   emit('blur')
 }
+
+const inputRef = ref<HTMLInputElement | null>(null)
+
+function focus() {
+  inputRef.value?.focus()
+  handleFocus()
+}
+
+defineExpose({
+  focus,
+})
 </script>
 
 <template>
   <label class="inline-flex gap-2 items-center" :class="[props.class]" :title="title">
     <span class="h-[1.2em] min-h-[1.2em] min-w-[1.2em] w-[1.2em]" :class="[icon]" inline-block />
     <input
+      ref="inputRef"
       :type="type || 'text'"
       :min="min"
       :max="max"

@@ -53,6 +53,7 @@ const emit = defineEmits<{
   (e: 'update:modelSize', size: ModelSize): void
   (e: 'update:modelOffset', offset: ModelOffset): void
   (e: 'modelLoaded'): void
+  (e: 'meshClick', index: number): void
 }>()
 
 const selectedShapeIndex = defineModel<number | null>('selectedShapeIndex', {
@@ -200,6 +201,11 @@ function removeHoverModel(_: number, event: PointerEvent) {
   event.stopPropagation()
 }
 
+function handleMeshClick(index: number, event: PointerEvent) {
+  emit('meshClick', index)
+  event.stopPropagation()
+}
+
 // 暴露方法给父组件
 defineExpose({
   modelGroup,
@@ -225,6 +231,7 @@ defineExpose({
         :render-order="index + 1"
         @pointer-enter="addHoverModel(index, $event as unknown as PointerEvent)"
         @pointer-leave="removeHoverModel(index, $event as unknown as PointerEvent)"
+        @click="handleMeshClick(index, $event as unknown as PointerEvent)"
       >
         <TresExtrudeGeometry
           :args="[item.shape, {
