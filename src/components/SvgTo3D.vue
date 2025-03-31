@@ -214,19 +214,20 @@ function handleMeshClick(index: number) {
           <div flex="~ gap-2 items-center py-3" :title="`Shape ${index + 1}`">
             <div
               class="border rounded h-5 min-h-5 min-w-5 w-5"
+              :title="`Color: #${item.color.getHexString()}`"
               :style="{ background: `#${item.color.getHexString()}` }"
             />
             <pre min-w-5>{{ index + 1 }}</pre>
           </div>
           <IconInput
-            :ref="el => inputRefs[index] = el as any"
+            :ref="el => inputRefs[index] = (el as any)"
             v-model:value="item.startZ"
             icon="i-iconoir-position"
             type="number"
             :min="-10"
             :max="10"
             :step="0.1"
-            title="起点位置"
+            title="Starting Point"
             class="py-3 flex-1"
             @focus="editingInputIndex = index"
             @blur="editingInputIndex = null"
@@ -238,7 +239,7 @@ function handleMeshClick(index: number) {
             :min="0"
             :max="10"
             :step="0.1"
-            title="拉伸深度"
+            title="Extrude Depth"
             class="py-3 flex-1"
             @focus="editingInputIndex = index"
             @blur="editingInputIndex = null"
