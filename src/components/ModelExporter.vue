@@ -1,138 +1,185 @@
-<script lang="ts" setup>
+<script setup lang="ts">
 import type { Group } from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { exportTo3MF } from '~/composables/3mf-exporter'
 
+// 定义导出格式类型
+type ExportFormat = 'stl' | 'obj' | 'gltf' | 'threeMF'
+
+interface ExportConfig {
+  extension: string
+  mimeType: string
+  label: string
+}
+
 const props = defineProps<{
   modelGroup: Group | null
   fileName: string
 }>()
 
-const stlUrl = ref('')
-const objUrl = ref('')
-const gltfUrl = ref('')
-const the3mfUrl = ref('')
-
-let stlExporter: STLExporter
-let objExporter: OBJExporter
-let gltfExporter: GLTFExporter
-
-function handleExportSTL() {
-  const group = props.modelGroup
-  if (!group)
-    return
-
-  stlExporter ||= new STLExporter()
-  const result = stlExporter.parse(group, {
-    binary: true,
-  })
-
-  stlUrl.value = URL.createObjectURL(new Blob([result], { type: 'application/octet-stream' }))
+// 导出格式配置
+const EXPORT_FORMATS: Record<ExportFormat, ExportConfig> = {
+  stl: {
+    extension: 'stl',
+    mimeType: 'application/octet-stream',
+    label: 'STL',
+  },
+  obj: {
+    extension: 'obj',
+    mimeType: 'text/plain',
+    label: 'OBJ',
+  },
+  gltf: {
+    extension: 'gltf',
+    mimeType: 'application/octet-stream',
+    label: 'GLTF',
+  },
+  threeMF: {
+    extension: '3mf',
+    mimeType: 'application/octet-stream',
+    label: '3MF',
+  },
 }
 
-function handleExportOBJ() {
-  const group = props.modelGroup
-  if (!group)
-    return
+// 使用响应式对象统一管理URL
+const exportUrls = reactive<Record<ExportFormat, string>>({
+  stl: '',
+  obj: '',
+  gltf: '',
+  threeMF: '',
+})
 
-  objExporter ||= new OBJExporter()
-  const result = objExporter.parse(group)
-
-  objUrl.value = URL.createObjectURL(new Blob([result], { type: 'text/plain' }))
+// 缓存导出器实例
+const exporters = {
+  stl: shallowRef<STLExporter>(),
+  obj: shallowRef<OBJExporter>(),
+  gltf: shallowRef<GLTFExporter>(),
 }
 
-function handleExportGLTF() {
-  const group = props.modelGroup
-  if (!group)
-    return
+// 检查是否有任何导出URL存在
+const hasActiveExport = computed(() =>
+  Object.values(exportUrls).some(url => url !== ''),
+)
 
-  gltfExporter ||= new GLTFExporter()
-  gltfExporter.parse(group, (result) => {
-    gltfUrl.value = URL.createObjectURL(new Blob([result as ArrayBuffer], { type: 'application/octet-stream' }))
-  }, (error) => {
-    console.error('导出 GLTF 失败:', error)
-  }, {
-    binary: true,
-  })
+// 导出处理函数
+const exportHandlers = {
+  async stl() {
+    if (!props.modelGroup)
+      return
+    exporters.stl.value ||= new STLExporter()
+    const result = exporters.stl.value.parse(props.modelGroup, { binary: true })
+    exportUrls.stl = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.stl.mimeType }))
+  },
+
+  async obj() {
+    if (!props.modelGroup)
+      return
+    exporters.obj.value ||= new OBJExporter()
+    const result = exporters.obj.value.parse(props.modelGroup)
+    // 将字符串转换为 Blob
+    exportUrls.obj = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.obj.mimeType }))
+  },
+
+  async gltf() {
+    await new Promise((resolve, reject) => {
+      if (!props.modelGroup)
+        return
+      exporters.gltf.value ||= new GLTFExporter()
+
+      exporters.gltf.value.parse(props.modelGroup, (result) => {
+        if (result instanceof ArrayBuffer) {
+          exportUrls.gltf = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.gltf.mimeType }))
+        }
+        else {
+          exportUrls.gltf = URL.createObjectURL(new Blob([JSON.stringify(result)], { type: EXPORT_FORMATS.gltf.mimeType }))
+        }
+        resolve(undefined)
+      }, (error) => {
+        reject(error)
+      }, { binary: true })
+    })
+  },
+
+  async threeMF() {
+    if (!props.modelGroup)
+      return
+    const result = await exportTo3MF(props.modelGroup)
+    exportUrls.threeMF = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.threeMF.mimeType }))
+  },
 }
 
-async function handleExport3MF() {
-  const group = props.modelGroup
-  if (!group)
-    return
-
-  const result = await exportTo3MF(group)
-  the3mfUrl.value = URL.createObjectURL(result)
+// 统一的导出处理函数
+async function handleExport(format: ExportFormat) {
+  await exportHandlers[format]()
 }
 
+// 清除所有URL
 function clearUrls() {
-  stlUrl.value = ''
-  objUrl.value = ''
-  gltfUrl.value = ''
-  the3mfUrl.value = ''
+  Object.keys(exportUrls).forEach((key) => {
+    exportUrls[key as ExportFormat] = ''
+  })
 }
+
+// 处理单个URL的清除
+function clearUrl(format: ExportFormat) {
+  exportUrls[format] = ''
+}
+
+// 组件卸载时清理URL
+onUnmounted(() => {
+  clearUrls()
+})
 </script>
 
 <template>
   <div flex="~ col gap-2">
     <h2 text-lg flex="~ items-center gap-2">
       <div i-iconoir-floppy-disk-arrow-in />
-      Export
+      导出
     </h2>
-    <div v-if="!(stlUrl || objUrl || gltfUrl || the3mfUrl)" flex="~ gap-2">
-      <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportSTL">
-        STL
-      </button>
-      <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportOBJ">
-        OBJ
-      </button>
-      <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportGLTF">
-        GLTF
-      </button>
-      <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExport3MF">
-        3MF
+
+    <!-- 导出按钮组 -->
+    <div v-if="!hasActiveExport" flex="~ gap-2">
+      <button
+        v-for="(config, format) in EXPORT_FORMATS"
+        :key="format"
+        text-xl
+        p2
+        rounded
+        bg-gray:30
+        flex-1
+        cursor-pointer
+        @click="handleExport(format as ExportFormat)"
+      >
+        {{ config.label }}
       </button>
     </div>
+
+    <!-- 下载链接组 -->
     <div v-else flex="~ gap-2" text-white>
-      <a
-        v-if="stlUrl"
-        class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-        :href="stlUrl"
-        :download="`${fileName}.stl`"
-        @click="stlUrl = ''"
+      <template v-for="(config, format) in EXPORT_FORMATS" :key="format">
+        <a
+          v-if="exportUrls[format as ExportFormat]"
+          class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
+          :href="exportUrls[format as ExportFormat]"
+          :download="`${fileName}.${config.extension}`"
+          @click="clearUrl(format as ExportFormat)"
+        >
+          Download {{ config.label }} File
+        </a>
+      </template>
+
+      <button
+        title="Close"
+        text-xl
+        p2
+        rounded
+        bg-gray
+        cursor-pointer
+        @click="clearUrls"
       >
-        Download The STL File
-      </a>
-      <a
-        v-if="objUrl"
-        class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-        :href="objUrl"
-        :download="`${fileName}.obj`"
-        @click="objUrl = ''"
-      >
-        Download The OBJ File
-      </a>
-      <a
-        v-if="gltfUrl"
-        class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-        :href="gltfUrl"
-        :download="`${fileName}.gltf`"
-        @click="gltfUrl = ''"
-      >
-        Download The GLTF File
-      </a>
-      <a
-        v-if="the3mfUrl"
-        class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-        :href="the3mfUrl"
-        :download="`${fileName}.3mf`"
-        @click="the3mfUrl = ''"
-      >
-        Download The 3MF File
-      </a>
-      <button title="close" text-xl p2 rounded bg-gray cursor-pointer @click="clearUrls">
         <div i-carbon:close />
       </button>
     </div>
