@@ -4,11 +4,8 @@ import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import { Box3, Color, Vector3 } from 'three'
-import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
-import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
-import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
-import { exportTo3MF } from '~/composables/3mf-exporter'
+import ModelExporter from './ModelExporter.vue'
 
 interface ShapeWithColor {
   shape: Shape
@@ -25,15 +22,7 @@ interface ModelSize {
   depth: number
 }
 
-let stlExporter: STLExporter
-let objExporter: OBJExporter
-let gltfExporter: GLTFExporter
-
 const groupRef = useTemplateRef<Group>('group')
-const stlUrl = ref('')
-const objUrl = ref('')
-const gltfUrl = ref('')
-const the3mfUrl = ref('')
 const fileName = ref('')
 const baseDepth = 2.1
 const reliefDepth = 2
@@ -250,54 +239,6 @@ function calcScale(nowScale: number, nowSize: number, targetSize: number) {
 watch([() => groupRef.value, scale, () => svgShapes.value.map(i => [i.depth, i.startZ])], () => {
   calculateModelSize()
 })
-
-function handleExportSTL() {
-  const group = modelGroup.value
-  if (!group)
-    return
-
-  stlExporter ||= new STLExporter()
-  const result = stlExporter.parse(group, {
-    binary: true,
-  })
-
-  stlUrl.value = URL.createObjectURL(new Blob([result], { type: 'application/octet-stream' }))
-}
-
-function handleExportOBJ() {
-  const group = modelGroup.value
-  if (!group)
-    return
-
-  objExporter ||= new OBJExporter()
-  const result = objExporter.parse(group)
-
-  objUrl.value = URL.createObjectURL(new Blob([result], { type: 'text/plain' }))
-}
-
-function handleExportGLTF() {
-  const group = modelGroup.value
-  if (!group)
-    return
-
-  gltfExporter ||= new GLTFExporter()
-  gltfExporter.parse(group, (result) => {
-    gltfUrl.value = URL.createObjectURL(new Blob([result as ArrayBuffer], { type: 'application/octet-stream' }))
-  }, (error) => {
-    console.error('导出 GLTF 失败:', error)
-  }, {
-    binary: true,
-  })
-}
-
-async function handleExport3MF() {
-  const group = modelGroup.value
-  if (!group)
-    return
-
-  const result = await exportTo3MF(group)
-  the3mfUrl.value = URL.createObjectURL(result)
-}
 
 // 调整相机参数
 const cameraPosition: [number, number, number] = [-50, 50, 100]
@@ -530,67 +471,10 @@ onMounted(() => {
         <div>H: {{ modelSize.height }}</div>
         <div>L: {{ modelSize.depth }}</div>
       </div>
-      <div flex="~ col gap-2">
-        <h2 text-lg flex="~ items-center gap-2">
-          <div i-iconoir-floppy-disk-arrow-in />
-          Export
-        </h2>
-        <div v-if="!(stlUrl || objUrl || gltfUrl || the3mfUrl)" flex="~ gap-2">
-          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportSTL">
-            STL
-          </button>
-          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportOBJ">
-            OBJ
-          </button>
-          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExportGLTF">
-            GLTF
-          </button>
-          <button text-xl p2 rounded bg-gray:30 flex-1 cursor-pointer @click="handleExport3MF">
-            3MF
-          </button>
-        </div>
-        <div v-else flex="~ gap-2" text-white>
-          <a
-            v-if="stlUrl"
-            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-            :href="stlUrl"
-            :download="`${fileName}.stl`"
-            @click="stlUrl = ''"
-          >
-            Download The STL File
-          </a>
-          <a
-            v-if="objUrl"
-            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-            :href="objUrl"
-            :download="`${fileName}.obj`"
-            @click="objUrl = ''"
-          >
-            Download The OBJ File
-          </a>
-          <a
-            v-if="gltfUrl"
-            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-            :href="gltfUrl"
-            :download="`${fileName}.gltf`"
-            @click="gltfUrl = ''"
-          >
-            Download The GLTF File
-          </a>
-          <a
-            v-if="the3mfUrl"
-            class="text-xl p2 text-center rounded bg-blue flex-1 w-full block"
-            :href="the3mfUrl"
-            :download="`${fileName}.3mf`"
-            @click="the3mfUrl = ''"
-          >
-            Download The 3MF File
-          </a>
-          <button title="close" text-xl p2 rounded bg-gray cursor-pointer @click="() => { stlUrl = ''; objUrl = ''; gltfUrl = ''; the3mfUrl = '' }">
-            <div i-carbon:close />
-          </button>
-        </div>
-      </div>
+      <ModelExporter
+        :model-group="modelGroup"
+        :file-name="fileName"
+      />
     </template>
   </div>
 </template>
