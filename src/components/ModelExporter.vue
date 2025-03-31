@@ -137,7 +137,7 @@ onUnmounted(() => {
   <div flex="~ col gap-2">
     <h2 text-lg flex="~ items-center gap-2">
       <div i-iconoir-floppy-disk-arrow-in />
-      导出
+      Export
     </h2>
 
     <!-- 导出按钮组 -->

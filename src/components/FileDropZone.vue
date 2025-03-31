@@ -141,7 +141,8 @@ const displayText = computed(() => {
       class="op0 inset-0 absolute z--1"
       @change="handleFileSelect"
     >
-    <span i-carbon:document-add mr-2 inline-block />
+    <span v-if="isGlobalDragging || !filename" i-carbon:document-add mr-2 inline-block />
+    <span v-else i-carbon:document mr-2 inline-block />
     <span>{{ displayText }}</span>
   </label>
 </template>

@@ -29,7 +29,7 @@ const modelRendererRef = ref<InstanceType<typeof ModelRenderer>>()
 
 // 默认模型信息
 const DEFAULT_SVG = '/model/bekuto3d.svg'
-const isDefaultSvg = computed(() => fileName.value === 'default-bekuto3d.svg')
+const isDefaultSvg = ref(false)
 const defaultSvgOffsetList = [0, 2.1]
 const defaultSvgDepthList = [2.1, 0, 1, 1, 1, 2, 1, 1.4, 1.6]
 
@@ -50,6 +50,7 @@ const size = computed({
 })
 
 function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
+  isDefaultSvg.value = false
   svgShapes.value = createShapesWithColor(svgData, {
     defaultDepth,
     defaultStartZ: 0,
@@ -75,13 +76,14 @@ async function loadDefaultSvg() {
   try {
     const response = await fetch(DEFAULT_SVG)
     const svgData = await response.text()
-    fileName.value = 'default-bekuto3d.svg'
+    fileName.value = ''
 
     mountSVG(svgData, (shapes, _) => shapes.map((item, index) => {
       item.startZ = defaultSvgOffsetList[index] ?? defaultSvgOffsetList[defaultSvgOffsetList.length - 1] ?? 0
       item.depth = defaultSvgDepthList[index] ?? 2
       return item
     }))
+    isDefaultSvg.value = true
   }
   catch (error) {
     console.error('加载默认 SVG 失败:', error)
@@ -195,7 +197,7 @@ const materialConfig = ref({
     <FileDropZone
       v-model:filename="fileName"
       :accept="['image/svg+xml']"
-      :default-text="isDefaultSvg ? 'Click or drop SVG file' : undefined"
+      default-text="Click or drop SVG file"
       @file-selected="handleFileSelected"
     />
     <template v-if="svgShapes.length && !isDefaultSvg">
@@ -256,7 +258,7 @@ const materialConfig = ref({
       </div>
       <ModelExporter
         :model-group="modelGroup"
-        :file-name="fileName"
+        :file-name="isDefaultSvg ? 'default-bekuto3d.svg' : fileName"
       />
     </template>
   </div>
