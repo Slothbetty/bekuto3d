@@ -1,17 +1,10 @@
 <script lang="ts" setup>
-import type { Group } from 'three'
 import type { ShapeWithColor } from '../composables/useSvgLoader'
-import { Box3, Vector3 } from 'three'
+import { useModelSize } from '../composables/useModelSize'
 import { useSvgLoader } from '../composables/useSvgLoader'
 import FileDropZone from './FileDropZone.vue'
 import ModelExporter from './ModelExporter.vue'
 import ModelRenderer from './ModelRenderer.vue'
-
-interface ModelSize {
-  width: number
-  height: number
-  depth: number
-}
 
 // 默认值
 const defaultDepth = 2
@@ -19,13 +12,18 @@ const defaultSize = 37
 const curveSegments = ref(64) // 模型曲线部分的细分程度
 
 // 组件状态
-const groupRef = useTemplateRef<Group>('group')
 const fileName = ref('')
 const svgShapes = ref<ShapeWithColor[]>([])
-const scale = ref(1)
-const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
-const modelOffset = ref({ x: 0, y: 0, z: 0 })
 const modelRendererRef = ref<InstanceType<typeof ModelRenderer>>()
+
+// 使用 useModelSize composable
+const {
+  size,
+  scale,
+  modelSize,
+  modelOffset,
+  watchModelSizeChanges,
+} = useModelSize()
 
 // 默认模型信息
 const DEFAULT_SVG = '/model/bekuto3d.svg'
@@ -36,18 +34,6 @@ const defaultSvgDepthList = [2.1, 0, 1, 1, 1, 2, 1, 1.4, 1.6]
 const { createShapesWithColor } = useSvgLoader()
 
 const modelGroup = computed(() => modelRendererRef.value?.modelGroup ?? null)
-const size = computed({
-  get() {
-    if (svgShapes.value.length === 0)
-      return 0
-    return modelSize.value.width
-  },
-  set(value) {
-    if (svgShapes.value.length === 0)
-      return
-    scale.value = calcScale(scale.value, modelSize.value.width, value)
-  },
-})
 
 function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
   isDefaultSvg.value = false
@@ -102,40 +88,6 @@ onMounted(() => {
   loadDefaultSvg()
 })
 
-function calculateModelSize() {
-  const group = modelGroup.value
-  if (!group)
-    return
-
-  // 延迟执行以确保模型已渲染
-  nextTick(() => {
-    try {
-      const box = (new Box3()).setFromObject(group, true)
-      const size = new Vector3()
-      box.getSize(size)
-
-      modelOffset.value = {
-        x: size.x / scale.value / -2,
-        y: size.y / scale.value / -2,
-        z: 0,
-      }
-
-      modelSize.value = {
-        width: Number(size.x.toFixed(2)),
-        height: Number(size.y.toFixed(2)),
-        depth: Number(size.z.toFixed(2)),
-      }
-    }
-    catch (error) {
-      console.error('计算模型尺寸失败:', error)
-    }
-  })
-}
-
-function calcScale(nowScale: number, nowSize: number, targetSize: number) {
-  return targetSize / (nowSize / nowScale)
-}
-
 function updateDepth(index: number, depth: number) {
   if (svgShapes.value[index])
     svgShapes.value[index].depth = depth
@@ -147,10 +99,8 @@ function updateStartZ(index: number, startZ: number) {
     svgShapes.value[index].startZ = startZ
 }
 
-// 监听 group 和 scale 的变化
-watch([() => groupRef.value, scale, () => svgShapes.value.map(i => [i.depth, i.startZ])], () => {
-  calculateModelSize()
-})
+// Monitor model changes
+watchModelSizeChanges(modelGroup, svgShapes)
 
 // 调整相机参数
 const cameraPosition: [number, number, number] = [-50, 50, 100]
