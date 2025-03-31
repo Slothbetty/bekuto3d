@@ -49,15 +49,6 @@ function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], ind
   })
 }
 
-function readFileAndConvert(file: File) {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const svgData = e.target?.result as string
-    mountSVG(svgData)
-  }
-  reader.readAsText(file)
-}
-
 async function loadDefaultSvg() {
   try {
     const response = await fetch(DEFAULT_SVG)
@@ -80,7 +71,13 @@ function handleFileSelected(files: File[]) {
   if (files.length === 0)
     return
   fileName.value = files[0].name
-  readFileAndConvert(files[0])
+
+  const reader = new FileReader()
+  reader.readAsText(files[0])
+  reader.onload = (e) => {
+    const svgData = e.target?.result as string
+    mountSVG(svgData)
+  }
 }
 
 // 组件加载时自动加载默认文件
