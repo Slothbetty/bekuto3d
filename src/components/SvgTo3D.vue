@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import type { Group, Shape } from 'three'
-import { OrbitControls } from '@tresjs/cientos'
-import { TresCanvas } from '@tresjs/core'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import { Box3, Color, Vector3 } from 'three'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
 import ModelExporter from './ModelExporter.vue'
+import ModelRenderer from './ModelRenderer.vue'
 
 interface ShapeWithColor {
   shape: Shape
@@ -33,9 +32,9 @@ const curveSegments = ref(64)
 const modelSize = ref<ModelSize>({ width: 0, height: 0, depth: 0 })
 const modelOffset = ref({ x: 0, y: 0, z: 0 })
 const loader = new SVGLoader()
+const modelRendererRef = ref<InstanceType<typeof ModelRenderer>>()
 
-const modelGroup = computed(() => toRaw(groupRef.value))
-const shownShapes = computed(() => suppressZFighting(svgShapes.value).filter(i => i.depth))
+const modelGroup = computed(() => modelRendererRef.value?.modelGroup ?? null)
 const size = computed({
   get() {
     if (svgShapes.value.length === 0)
@@ -144,63 +143,6 @@ const { isOverDropZone } = useDropZone(dropZone, {
   preventDefaultForUnhandled: true,
 })
 
-/**
- * 解决 Z-fighting 问题
- * 通过微调深度值来解决拉伸方向上面重叠时的闪烁问题
- * @param shapes
- * @param scale
- */
-function suppressZFighting(shapes: ShapeWithColor[], scale = 0.001) {
-  const depths = new Map<number, number>()
-  const offsets = new Map<number, number>()
-
-  return shapes.map((shape) => {
-    if (!shape.depth)
-      return shape
-
-    const offset = shape.startZ
-    let offsetCount = 0
-
-    if (offsetCount = offsets.get(offset) || 0) {
-      const newOffset = fixFloat(offsetCount * scale)
-      shape = {
-        ...shape,
-        depth: fixFloat(shape.depth + newOffset),
-        startZ: fixFloat(shape.startZ - newOffset),
-      }
-    }
-
-    offsets.set(offset, offsetCount + 1)
-    return shape
-  }).map((shape) => {
-    if (!shape.depth)
-      return shape
-
-    const depth = fixFloat(shape.startZ + shape.depth)
-    let depthCount = 0
-
-    if (depthCount = depths.get(depth) || 0) {
-      shape = {
-        ...shape,
-        depth: fixFloat(shape.depth + depthCount * scale),
-      }
-    }
-    depths.set(depth, depthCount + 1)
-    return shape
-  })
-}
-
-function updateDepth(index: number, depth: number) {
-  if (svgShapes.value[index])
-    svgShapes.value[index].depth = depth
-}
-
-// 添加更新startZ的函数
-function updateStartZ(index: number, startZ: number) {
-  if (svgShapes.value[index])
-    svgShapes.value[index].startZ = startZ
-}
-
 function calculateModelSize() {
   const group = modelGroup.value
   if (!group)
@@ -233,6 +175,17 @@ function calculateModelSize() {
 
 function calcScale(nowScale: number, nowSize: number, targetSize: number) {
   return targetSize / (nowSize / nowScale)
+}
+
+function updateDepth(index: number, depth: number) {
+  if (svgShapes.value[index])
+    svgShapes.value[index].depth = depth
+}
+
+// 添加更新startZ的函数
+function updateStartZ(index: number, startZ: number) {
+  if (svgShapes.value[index])
+    svgShapes.value[index].startZ = startZ
 }
 
 // 监听 group 和 scale 的变化
@@ -303,10 +256,6 @@ async function loadDefaultSvg() {
   }
 }
 
-function fixFloat(num: number) {
-  return Number.parseFloat(num.toFixed(10))
-}
-
 // 组件加载时自动加载默认文件
 onMounted(() => {
   loadDefaultSvg()
@@ -314,66 +263,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <TresCanvas window-size :clear-color="isDark ? '#437568' : '#82DBC5'" :logarithmic-depth-buffer="true">
-    <TresPerspectiveCamera
-      :position="cameraPosition"
-      :look-at="[0, 0, 0]"
-    />
-    <OrbitControls v-bind="controlsConfig" />
-    <TresGroup
-      v-if="svgShapes.length"
-      ref="group"
-      :scale="[scale, -scale, 1]"
-    >
-      <TresMesh
-        v-for="(item, index) in shownShapes"
-        :key="index"
-        :position="[modelOffset.x, modelOffset.y, modelOffset.z + item.startZ]"
-        :render-order="index + 1"
-      >
-        <TresExtrudeGeometry
-          :args="[item.shape, {
-            depth: item.depth,
-            bevelEnabled: false,
-            curveSegments,
-          }]"
-        />
-        <TresMeshPhongMaterial
-          v-bind="materialConfig"
-          :color="item.color"
-          :opacity="item.opacity"
-          :polygon-offset="!!item.polygonOffset"
-          :polygon-offset-factor="item.polygonOffset"
-        />
-      </TresMesh>
-    </TresGroup>
-
-    <!-- 移除原来的 Torus 默认显示 -->
-
-    <!-- 重新设计的光照系统 -->
-    <!-- 主光源：从右上方打光 -->
-    <TresDirectionalLight
-      :position="[100, 100, 50]"
-      :intensity="1"
-    />
-    <!-- 侧面补光：从左侧打光 -->
-    <TresDirectionalLight
-      :position="[-50, 20, 50]"
-      :intensity="0.4"
-    />
-    <!-- 正面补光：轻微的正面打光 -->
-    <TresDirectionalLight
-      :position="[0, 0, 100]"
-      :intensity="0.5"
-    />
-    <!-- 柔和的环境光 -->
-    <TresAmbientLight :intensity="0.4" />
-    <!-- 半球光：提供更自然的环境光照 -->
-    <TresHemisphereLight
-      :args="['#ffffff', '#4444ff', 0.5]"
-      :position="[0, 100, 0]"
-    />
-  </TresCanvas>
+  <ModelRenderer
+    ref="modelRendererRef"
+    v-model:model-size="modelSize"
+    v-model:model-offset="modelOffset"
+    :shapes="svgShapes"
+    :scale="scale"
+    :curve-segments="curveSegments"
+    :material-config="materialConfig"
+    :camera-position="cameraPosition"
+    :controls-config="controlsConfig"
+    @model-loaded="() => {}"
+  />
   <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">
     <div flex="~ col gap-2">
       <div flex="~ gap-3 items-center" text-xl font-500>
