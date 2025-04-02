@@ -29,11 +29,10 @@ Export 3D models to 3MF format in Three.js
 ### Basic usage
 
 ```typescript
-import type { Group } from 'three'
 import { exportTo3MF } from 'three-3mf-exporter'
 
-const modelGroup = new Group() // Your Three.js model group
-const blob = await exportTo3MF(modelGroup)
+// Parse the three.js object and generate the 3MF encoded output
+const blob = await exportTo3MF(mesh)
 
 // Download the file
 const url = URL.createObjectURL(blob)
@@ -44,7 +43,7 @@ link.href = url
 ### With custom print settings (BambuStudio compatible)
 
 ```typescript
-const blob = await exportTo3MF(modelGroup, {
+const blob = await exportTo3MF(meshOrGroup, {
   printer_name: 'Bambu Lab A1',
   filament: 'Bambu PLA Basic @BBL A1',
   printableWidth: 256,
