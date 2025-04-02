@@ -84,13 +84,16 @@ export async function exportTo3MF(
   const projectSettingsConfig = createProjectSettingsConfig(materials, printConfig)
 
   // 将文件添加到ZIP中
-  zip.file('[Content_Types].xml', contentTypesXML())
   zip.file('_rels/.rels', relationshipsXML())
   zip.file('3D/3dmodel.model', mainModelXml)
   zip.file('3D/_rels/3dmodel.model.rels', objectRelationshipsXML())
   zip.file('3D/Objects/object-97.model', objectModelXml)
   zip.file('Metadata/model_settings.config', modelSettingsXml)
   zip.file('Metadata/project_settings.config', projectSettingsConfig)
+
+  // 当我把 '[Content_Types].xml' 文件名放在压缩包的开头时，压缩文件将无法解压。
+  // 不确定具体原因，但是请不要把它放在压缩包的开头。
+  zip.file('[Content_Types].xml', contentTypesXML())
 
   // 生成ZIP文件
   return await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' })
