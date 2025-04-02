@@ -33,10 +33,22 @@ interface PrintConfig {
   printableWidth: number // 打印床宽度 (X轴)
   printableDepth: number // 打印床深度 (Y轴)
   printableHeight: number // 打印高度 (Z轴)
-  printableArea: string[] // 打印区域坐标
+  printableArea: [string, string, string, string] // 打印区域坐标
   printerSettingsId: string // 打印机设置ID
   printSettingsId: string // 打印设置ID
 }
+
+// 默认的打印配置 (基于 Bambu Lab A1)
+export const defaultPrintConfig: PrintConfig = {
+  printer_name: 'Bambu Lab A1',
+  filament: 'Bambu PLA Basic @BBL A1',
+  printableWidth: 256,
+  printableDepth: 256,
+  printableHeight: 256,
+  printableArea: ['0x0', '256x0', '256x256', '0x256'] as const,
+  printerSettingsId: 'Bambu Lab A1 0.4 nozzle',
+  printSettingsId: '0.20mm Standard @BBL A1',
+} as const
 
 /**
  * 将 Three.js 的 Group 或 Mesh 导出为 3MF 文件格式 (BambuStudio 兼容格式)
@@ -48,22 +60,11 @@ export async function exportTo3MF(
   object: Group | Object3D,
   printJobConfig?: Partial<PrintConfig>,
 ): Promise<Blob> {
+  const objectId = 1
   const zip = new JSZip()
 
-  // 默认的打印床配置 (基于 Bambu Lab A1)
-  const defaultPrintConfig: PrintConfig = {
-    printer_name: 'Bambu Lab A1',
-    filament: 'Bambu PLA Basic @BBL A1',
-    printableWidth: 256,
-    printableDepth: 256,
-    printableHeight: 256,
-    printableArea: ['0x0', '256x0', '256x256', '0x256'],
-    printerSettingsId: 'Bambu Lab A1 0.4 nozzle',
-    printSettingsId: '0.20mm Standard @BBL A1',
-  }
-
   // 合并用户提供的配置与默认配置
-  const printConfig = { ...defaultPrintConfig, ...printJobConfig }
+  const printConfig = Object.assign({} as (typeof defaultPrintConfig & Partial<PrintConfig>), defaultPrintConfig, printJobConfig)
 
   // 收集所有组件和材质信息
   const components: ComponentInfo[] = []
@@ -78,16 +79,16 @@ export async function exportTo3MF(
   const transform = calculateCenteringTransform(modelCenter, boundingBox, printConfig)
 
   // 创建 3MF 所需的基本文件结构
-  const mainModelXml = createMainModelXML(components, transform)
+  const mainModelXml = createMainModelXML(objectId, components, transform)
   const objectModelXml = createObjectModelXML(components)
-  const modelSettingsXml = createModelSettingsXML(components)
+  const modelSettingsXml = createModelSettingsXML(objectId, components)
   const projectSettingsConfig = createProjectSettingsConfig(materials, printConfig)
 
   // 将文件添加到ZIP中
-  zip.file('_rels/.rels', relationshipsXML())
+  zip.file('_rels/.rels', relationshipsXML({ id: `rel-1`, target: '/3D/3dmodel.model' }))
   zip.file('3D/3dmodel.model', mainModelXml)
-  zip.file('3D/_rels/3dmodel.model.rels', objectRelationshipsXML())
-  zip.file('3D/Objects/object-97.model', objectModelXml)
+  zip.file('3D/_rels/3dmodel.model.rels', relationshipsXML({ id: `rel-${objectId}`, target: `/3D/Objects/object-${objectId}.model` }))
+  zip.file(`3D/Objects/object-${objectId}.model`, objectModelXml)
   zip.file('Metadata/model_settings.config', modelSettingsXml)
   zip.file('Metadata/project_settings.config', projectSettingsConfig)
 
@@ -148,7 +149,7 @@ function collectComponents(
       }
     }
 
-    const componentId = 100 + components.length
+    const componentId = components.length
     const component: ComponentInfo = {
       id: componentId,
       vertices: [],
@@ -275,7 +276,7 @@ function calculateCenteringTransform(modelCenter: ModelCenter, boundingBox: Boun
 /**
  * 创建主3dmodel.model文件的XML数据
  */
-function createMainModelXML(components: ComponentInfo[], transform: string): string {
+function createMainModelXML(objectId: number, components: ComponentInfo[], transform: string): string {
   const model = {
     model: {
       '@_unit': 'millimeter',
@@ -292,12 +293,12 @@ function createMainModelXML(components: ComponentInfo[], transform: string): str
       ],
       'resources': {
         object: {
-          '@_id': '97',
+          '@_id': `${objectId}`,
           '@_p:uuid': generateUUID(),
           '@_type': 'model',
           'components': {
             component: components.map(comp => ({
-              '@_p:path': '/3D/Objects/object-97.model',
+              '@_p:path': `/3D/Objects/object-${objectId}.model`,
               '@_objectid': comp.id.toString(),
             })),
           },
@@ -306,7 +307,7 @@ function createMainModelXML(components: ComponentInfo[], transform: string): str
       'build': {
         '@_p:uuid': `${generateUUID()}1`,
         'item': {
-          '@_objectid': '97',
+          '@_objectid': `${objectId}`,
           '@_p:uuid': `${generateUUID()}2`,
           '@_transform': transform,
           '@_printable': '1',
@@ -362,6 +363,7 @@ function createObjectModelXML(components: ComponentInfo[]): string {
       '@_xmlns': 'http://schemas.microsoft.com/3dmanufacturing/core/2015/02',
       '@_xmlns:p': 'http://schemas.microsoft.com/3dmanufacturing/production/2015/06',
       'resources': objects,
+      'build': {},
     },
   }
 
@@ -378,7 +380,7 @@ function createObjectModelXML(components: ComponentInfo[]): string {
 /**
  * 创建模型设置XML配置
  */
-function createModelSettingsXML(components: ComponentInfo[]): string {
+function createModelSettingsXML(objectId: number, components: ComponentInfo[]): string {
   const partsXml = components.map((comp) => {
     const extruder = comp.material ? comp.material.extruder : 1
     return `    <part id="${comp.id}" subtype="normal_part">
@@ -390,7 +392,7 @@ function createModelSettingsXML(components: ComponentInfo[]): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <config>
-  <object id="97">
+  <object id="${objectId}">
     <metadata key="name" value="Exported3DModel.3mf"/>
     <metadata key="extruder" value="1"/>
     <metadata key="thumbnail_file" value=""/>
@@ -400,12 +402,12 @@ ${partsXml}
     <metadata key="plater_id" value="1"/>
     <metadata key="plater_name" value="plate-1"/>
     <model_instance>
-      <metadata key="object_id" value="97"/>
+      <metadata key="object_id" value="${objectId}"/>
       <metadata key="instance_id" value="0"/>
     </model_instance>
   </plate>
   <assemble>
-    <assemble_item object_id="97" instance_id="0" offset="0 0 0"/>
+    <assemble_item object_id="${objectId}" instance_id="0" offset="0 0 0"/>
   </assemble>
 </config>`
 }
@@ -416,7 +418,8 @@ ${partsXml}
 function createProjectSettingsConfig(materials: MaterialInfo[], printConfig: PrintConfig): string {
   // 从材质中提取颜色
   const colors = materials.map((m) => {
-    return rgbToHexColor(m.color)
+    const hex = `#${m.color.getHexString()}`
+    return hex
   })
 
   // 确保至少有两个颜色(BambuStudio的要求)
@@ -463,31 +466,14 @@ function contentTypesXML(): string {
 /**
  * 创建 3MF Relationships XML
  */
-function relationshipsXML(): string {
+function relationshipsXML(options: {
+  id: string
+  target: string
+}): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rel-1" Target="/3D/3dmodel.model" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
+  <Relationship Id="rel-${options.id}" Target="${options.target}" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
 </Relationships>`
-}
-
-/**
- * 创建对象关系XML
- */
-function objectRelationshipsXML(): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Target="/3D/Objects/object-97.model" Id="rel-97" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
-</Relationships>`
-}
-
-/**
- * 将RGB颜色转换为十六进制颜色字符串
- */
-function rgbToHexColor(color: Color): string {
-  const r = Math.round(color.r * 255)
-  const g = Math.round(color.g * 255)
-  const b = Math.round(color.b * 255)
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
 }
 
 /**
