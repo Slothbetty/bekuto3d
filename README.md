@@ -6,7 +6,13 @@ Convert SVG files to 3D models. Export STL, OBJ, or GLTF.
 
 Use it for 3D Printing or 3D Web Development.
 
-**Try it out: [bekuto3d.ayaka.io](https://bekuto3d.ayaka.io)**
+## Try it out
+
+[bekuto3d.ayaka.io](https://bekuto3d.ayaka.io)
+
+## Sub-packages
+
+- [three-3mf-exporter](./packages/three-3mf-exporter) - Export 3D models to 3MF format in Three.js
 
 ## Screenshot
 
