@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Group } from 'three'
+import { exportTo3MF } from 'three-3mf-exporter'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
-import { exportTo3MF } from '~/composables/3mf-exporter'
 
 // 定义导出格式类型
 type ExportFormat = 'stl' | 'obj' | 'gltf' | 'threeMF'

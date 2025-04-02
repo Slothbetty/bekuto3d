@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { ShapeWithColor } from '../composables/useSvgLoader'
+import type { ShapeWithColor } from '~/types/three-types'
 import { Color } from 'three'
 import { useModelSize } from '../composables/useModelSize'
 import { useSvgLoader } from '../composables/useSvgLoader'

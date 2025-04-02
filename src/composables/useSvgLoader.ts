@@ -1,15 +1,6 @@
-import type { BufferGeometry, Shape } from 'three'
+import type { ShapeWithColor } from '~/types/three-types'
 import { Color } from 'three'
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js'
-
-export interface ShapeWithColor {
-  shape: Shape | BufferGeometry
-  color: Color
-  opacity: number
-  depth: number
-  startZ: number
-  polygonOffset: number
-}
 
 export interface SvgLoaderOptions {
   defaultColor?: string

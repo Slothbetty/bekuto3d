@@ -7,7 +7,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "~/*": ["src/*"]
+      "~/*": ["src/*"],
+      "three-3mf-exporter": ["packages/three-3mf-exporter/src/index"]
     },
     "resolveJsonModule": true,
     "types": [

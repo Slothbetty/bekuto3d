@@ -310,7 +310,7 @@ declare global {
   export type { ModelSize, ModelOffset } from './src/composables/useModelSize'
   import('./src/composables/useModelSize')
   // @ts-ignore
-  export type { ShapeWithColor, SvgLoaderOptions } from './src/composables/useSvgLoader'
+  export type { SvgLoaderOptions } from './src/composables/useSvgLoader'
   import('./src/composables/useSvgLoader')
 }
 
@@ -346,7 +346,6 @@ declare module 'vue' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
-    readonly exportTo3MF: UnwrapRef<typeof import('./src/composables/3mf-exporter')['exportTo3MF']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>

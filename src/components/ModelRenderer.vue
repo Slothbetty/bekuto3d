@@ -1,17 +1,9 @@
 <script lang="ts" setup>
-import type { Color, Group, Shape } from 'three'
+import type { Group } from 'three'
+import type { ShapeWithColor } from '~/types/three-types'
 import { OrbitControls } from '@tresjs/cientos'
 import { TresCanvas } from '@tresjs/core'
 import { Box3, Vector3 } from 'three'
-
-interface ShapeWithColor {
-  shape: Shape
-  color: Color
-  opacity: number
-  depth: number
-  startZ: number
-  polygonOffset: number
-}
 
 interface ModelSize {
   width: number

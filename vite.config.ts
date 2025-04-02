@@ -1,20 +1,22 @@
 /// <reference types="vitest" />
 
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { templateCompilerOptions } from '@tresjs/core'
 import Vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { VueRouterAutoImports } from 'unplugin-vue-router'
-import VueRouter from 'unplugin-vue-router/vite'
 
+import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   resolve: {
     alias: {
       '~/': `${path.resolve(__dirname, 'src')}/`,
+      'three-3mf-exporter': fileURLToPath(new URL('./packages/three-3mf-exporter/src', import.meta.url)),
     },
   },
   plugins: [
