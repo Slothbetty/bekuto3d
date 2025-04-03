@@ -12,6 +12,24 @@
     "directory": "packages/3mf-exporter"
   },
   "bug": "https://github.com/littlesound/bekuto3d/issues",
+  "keywords": [
+    "3mf",
+    "3d-printer",
+    "three",
+    "three.js",
+    "javascript",
+    "3d",
+    "virtual-reality",
+    "augmented-reality",
+    "webgl",
+    "webgl2",
+    "webaudio",
+    "webgpu",
+    "webxr",
+    "canvas",
+    "svg",
+    "html5"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
