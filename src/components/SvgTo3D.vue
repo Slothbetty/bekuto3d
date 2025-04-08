@@ -46,18 +46,6 @@ const inputRefs = ref<(unknown & { focus: () => void } | null)[]>([])
 
 const svgCode = ref('')
 
-watch(svgCode, (newCode) => {
-  const isNewCodeEmpty = !newCode || newCode.trim() === ''
-  isDefaultSvg.value = isNewCodeEmpty
-
-  if (isNewCodeEmpty || !isValidSvg(newCode)) {
-    loadDefaultSvg()
-    return
-  }
-
-  mountSVG(newCode)
-})
-
 function mountSVG(svgData: string, customShapes?: (shapes: ShapeWithColor[], index: number) => ShapeWithColor[]) {
   isDefaultSvg.value = false
   svgShapes.value = createShapesWithColor(svgData, {
@@ -174,6 +162,44 @@ function isValidSvg(code: string) {
     && svgStart < svgEnd
     && (lowerCode.includes('viewbox') || lowerCode.includes('width') || lowerCode.includes('height'))
 }
+
+function handleInputSvgCode() {
+  pasteSvg(svgCode.value)
+  svgCode.value = ''
+}
+
+function pasteSvg(paste: string | undefined) {
+  if (paste && isValidSvg(paste)) {
+    fileName.value = 'Pasted file'
+    mountSVG(paste)
+    return true
+  }
+  return false
+}
+
+onMounted(() => {
+  document.addEventListener('paste', (event) => {
+    // 检查是否在输入框中粘贴
+    const target = event.target as HTMLElement
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
+      return
+
+    const paste = getClipboardData(event)?.getData('text')
+
+    if (pasteSvg(paste)) {
+      event.preventDefault()
+    }
+    else {
+      console.warn('not a svg')
+    }
+  })
+})
+
+function getClipboardData(event: ClipboardEvent): DataTransfer | null {
+  return (event.clipboardData || (window as any).clipboardData)
+}
+
+const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
 </script>
 
 <template>
@@ -213,31 +239,39 @@ function isValidSvg(code: string) {
     </div>
     <div flex="~ col gap-2">
       <FileDropZone
-        v-if="!svgCode"
+        v-if="!svgCode || isLoaded"
         v-model:filename="fileName"
         :accept="['image/svg+xml']"
         default-text="Click or drop SVG file"
         @file-selected="handleFileSelected"
       />
-      <div v-if="!svgCode && !fileName" flex="~ gap-2 items-center">
+      <div v-if="!svgCode && !isLoaded" flex="~ gap-2 items-center">
         <hr flex-1>
         <p text-center op-80>
           OR
         </p>
         <hr flex-1>
       </div>
-      <textarea
-        v-if="!fileName"
-        v-model="svgCode"
-        name="svg-code"
-        placeholder="Paste SVG code here"
-        bg="black/10 dark:white/20 hover:black/20 dark:hover:white/30"
-        p2
-        border
-        rounded
-      />
+      <template v-if="!isLoaded">
+        <textarea
+          v-model="svgCode"
+          name="svg-code"
+          placeholder="Paste SVG code here"
+          bg="black/10 dark:white/20 hover:black/20 dark:hover:white/30"
+          p2
+          border
+          rounded
+        />
+        <button
+          v-if="svgCode && isValidSvg(svgCode)"
+          class="text-xl p2 text-center rounded bg-blue flex-1 w-full block cursor-pointer"
+          @click="handleInputSvgCode()"
+        >
+          Convert
+        </button>
+      </template>
     </div>
-    <template v-if="svgShapes.length && !isDefaultSvg">
+    <template v-if="isLoaded">
       <div flex="~ gap-2 items-center">
         <IconInput
           v-model:value="size"
