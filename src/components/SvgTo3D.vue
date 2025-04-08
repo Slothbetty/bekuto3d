@@ -199,6 +199,17 @@ function getClipboardData(event: ClipboardEvent): DataTransfer | null {
   return (event.clipboardData || (window as any).clipboardData)
 }
 
+function handleClose() {
+  fileName.value = ''
+  svgShapes.value = []
+  svgCode.value = ''
+  selectedShapeIndex.value = null
+  editingInputIndex.value = null
+  isExporting.value = false
+  size.value = defaultSize
+  loadDefaultSvg()
+}
+
 const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
 </script>
 
@@ -228,10 +239,18 @@ const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
   />
   <div flex="~ col gap-6" p4 rounded-4 bg-white:50 max-w-340px w-full left-10 top-10 fixed z-999 of-y-auto backdrop-blur-md dark:bg-black:50 max-h="[calc(100vh-160px)]">
     <div flex="~ col gap-2">
-      <div flex="~ gap-3 items-center" text-xl font-500>
-        <img src="/logo-dark.svg" size-7.5 class="hidden dark:block">
-        <img src="/logo-light.svg" size-7.5 class="block dark:hidden">
-        <h1>Bekuto 3D</h1>
+      <div flex="~ gap-3 items-center justify-between" text-xl font-500>
+        <div flex="~ gap-3 items-center">
+          <img src="/logo-dark.svg" size-7.5 class="hidden dark:block">
+          <img src="/logo-light.svg" size-7.5 class="block dark:hidden">
+          <h1>Bekuto 3D</h1>
+        </div>
+        <button
+          v-if="isLoaded"
+          class="i-iconoir-cancel text-xl cursor-pointer transition-opacity hover:op-80"
+          title="Close current file"
+          @click="handleClose"
+        />
       </div>
       <p op-80>
         Convert SVG files to 3D models
