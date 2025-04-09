@@ -247,7 +247,7 @@ const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
         </div>
         <button
           v-if="isLoaded"
-          class="i-iconoir-cancel text-xl cursor-pointer transition-opacity hover:op-80"
+          class="i-iconoir-trash text-xl cursor-pointer transition-opacity hover:op-80"
           title="Close current file"
           @click="handleClose"
         />
