@@ -15,6 +15,8 @@ Export 3D models to 3MF format in Three.js
   </a>
 </p>
 
+While developing [Bekuto3D](https://bekuto3d.ayaka.io), I discovered that Three.js lacked support for the 3MF format, which is essential for modern 3D printing workflows. Unlike STL, 3MF supports colors, materials, and print settings metadata. This exporter bridges the gap between web development and 3D printing, making it easier for Three.js developers to create 3D printable models with rich features.
+
 ## Features
 
 - Export Three.js models to 3MF format
@@ -72,3 +74,14 @@ link.href = url
   You can join them at my sponsors profile:
 </p>
 <p align="center"><a href="https://github.com/sponsors/LittleSound"><img src="https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86&style=for-the-badge" /></a></p>
+
+## Why 3MF?
+
+The 3MF format offers significant advantages over alternatives like STL for 3D printing:
+
+- **Color & Material Support**: Export models with multiple colors and materials
+- **Print Settings**: Embed printer-specific configurations directly in the file
+- **Modern Standard**: An open, industry-supported format designed specifically for 3D printing
+- **Slicer Compatibility**: Works directly with popular slicers like BambuStudio without conversion
+
+This exporter was created to enable web developers to easily bridge the gap between Three.js projects and physical 3D printing.
