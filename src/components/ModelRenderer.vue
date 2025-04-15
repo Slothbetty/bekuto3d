@@ -39,6 +39,7 @@ const props = defineProps<{
   curveSegments: number
   materialConfig: MaterialConfig
   controlsConfig: ControlsConfig
+  zFighting: boolean
 }>()
 
 const emit = defineEmits<{
@@ -110,7 +111,7 @@ function fixFloat(num: number) {
 }
 
 // 计算实际显示的形状
-const shownShapes = computed(() => suppressZFighting(props.shapes))
+const shownShapes = computed(() => props.zFighting ? suppressZFighting(props.shapes) : props.shapes)
 
 // 获取形状的材质配置
 function getShapeMaterialConfig(index: number) {

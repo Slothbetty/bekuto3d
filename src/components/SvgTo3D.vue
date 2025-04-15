@@ -221,6 +221,7 @@ const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
     v-model:camera-position="cameraPosition"
     v-model:selected-shape-index="selectedShownShapeIndex"
     :shapes="shownShapes"
+    :z-fighting="!isExporting"
     :scale="scale"
     :curve-segments="curveSegments"
     :material-config="{
