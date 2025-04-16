@@ -2,11 +2,10 @@
 import type { Group } from 'three'
 import { exportTo3MF } from 'three-3mf-exporter'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
-import { OBJExporter } from 'three/addons/exporters/OBJExporter.js'
 import { STLExporter } from 'three/addons/exporters/STLExporter.js'
 
 // 定义导出格式类型
-type ExportFormat = 'stl' | 'obj' | 'gltf' | 'threeMF'
+type ExportFormat = 'stl' | 'gltf' | 'threeMF'
 
 interface ExportConfig {
   extension: string
@@ -28,11 +27,11 @@ const EXPORT_FORMATS: Record<ExportFormat, ExportConfig> = {
     mimeType: 'application/octet-stream',
     label: 'STL',
   },
-  obj: {
-    extension: 'obj',
-    mimeType: 'text/plain',
-    label: 'OBJ',
-  },
+  // obj: {
+  //   extension: 'obj',
+  //   mimeType: 'text/plain',
+  //   label: 'OBJ',
+  // },
   gltf: {
     extension: 'gltf',
     mimeType: 'application/octet-stream',
@@ -48,7 +47,7 @@ const EXPORT_FORMATS: Record<ExportFormat, ExportConfig> = {
 // 使用响应式对象统一管理URL
 const exportUrls = reactive<Record<ExportFormat, string>>({
   stl: '',
-  obj: '',
+  // obj: '',
   gltf: '',
   threeMF: '',
 })
@@ -56,7 +55,7 @@ const exportUrls = reactive<Record<ExportFormat, string>>({
 // 缓存导出器实例
 const exporters = {
   stl: shallowRef<STLExporter>(),
-  obj: shallowRef<OBJExporter>(),
+  // obj: shallowRef<OBJExporter>(),
   gltf: shallowRef<GLTFExporter>(),
 }
 
@@ -75,14 +74,14 @@ const exportHandlers = {
     exportUrls.stl = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.stl.mimeType }))
   },
 
-  async obj() {
-    if (!props.modelGroup)
-      return
-    exporters.obj.value ||= new OBJExporter()
-    const result = exporters.obj.value.parse(props.modelGroup)
-    // 将字符串转换为 Blob
-    exportUrls.obj = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.obj.mimeType }))
-  },
+  // async obj() {
+  //   if (!props.modelGroup)
+  //     return
+  //   exporters.obj.value ||= new OBJExporter()
+  //   const result = exporters.obj.value.parse(props.modelGroup)
+  //   // 将字符串转换为 Blob
+  //   exportUrls.obj = URL.createObjectURL(new Blob([result], { type: EXPORT_FORMATS.obj.mimeType }))
+  // },
 
   async gltf() {
     await new Promise((resolve, reject) => {
