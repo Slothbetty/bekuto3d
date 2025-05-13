@@ -87,8 +87,7 @@ function handleFileSelect(event: Event) {
 // 处理文件验证和提交
 function handleFiles(files: File[]) {
   try {
-    // 验证文件类型
-    const invalidType = files.find(file => !props.accept.includes(file.type))
+    const invalidType = files.find(file => !validateFileType(file))
     if (invalidType)
       throw new Error(`不支持的文件类型: ${invalidType.type}`)
 
@@ -105,6 +104,18 @@ function handleFiles(files: File[]) {
   catch (error) {
     emit('error', error as Error)
   }
+}
+
+/**
+ * Validate File Type. Supported types are defined in props.accept.
+ * Use image/* to support all image types.
+ *
+ * @param file
+ */
+function validateFileType(file: File) {
+  if (props.accept.includes('image/*') && file.type.startsWith('image/'))
+    return true
+  return props.accept.includes(file.type)
 }
 
 // 计算显示文本

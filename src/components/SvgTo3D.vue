@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { ShapeWithColor } from '~/types/three-types'
+import potrace from 'potrace'
 import { Color } from 'three'
 import { useModelSize } from '../composables/useModelSize'
 import { useSvgLoader } from '../composables/useSvgLoader'
@@ -78,17 +79,81 @@ async function loadDefaultSvg() {
   }
 }
 
-function handleFileSelected(files: File[]) {
+/**
+ * Load user selected image and convert to 3D model
+ * Supports two types of files:
+ * 1. SVG vector files - directly load and convert to 3D model. Best results.
+ * 2. Bitmap files (jpg/png etc) - first convert bitmap to SVG, then generate 3D model, results have limitations.
+ *
+ * @param files User selected file list
+ */
+async function handleFileSelected(files: File[]) {
   if (files.length === 0)
     return
-  fileName.value = files[0].name
+  const file = files[0]
+
+  if (!file.type.includes('svg') && file.type.startsWith('image/')) {
+    const svg = await convertBitmapToSvg(file)
+    mountSVG(svg)
+    return
+  }
 
   const reader = new FileReader()
-  reader.readAsText(files[0])
+  reader.readAsText(file)
   reader.onload = (e) => {
     const svgData = e.target?.result as string
     mountSVG(svgData)
   }
+}
+
+async function convertBitmapToSvg(file: File) {
+  /*
+    TODO: There are currently a few issues that we hope can be resolved in the future.
+
+    - Does not support multiple colors
+    - The inner edges of hollow shapes are missing, a phenomenon usually referred to as non-manifold edges, which are structures that cannot be 3D printed.
+    - Cannot remove the added background, the background should be optional.
+  */
+
+  const { width: imageWidth, height: imageHeight } = await getImageWidthHeight(file)
+
+  const padding = 8
+  const cornerRadius = 8
+
+  return new Promise<string>((resolve, reject) => {
+    file.arrayBuffer().then((buffer) => {
+      // eslint-disable-next-line node/prefer-global/buffer
+      potrace.trace(Buffer.from(buffer), (_: any, svg: string) => {
+        const svgWidth = imageWidth + padding * 2
+        const svgHeight = imageHeight + padding * 2
+
+        const contentMatch = svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/)
+        const content = contentMatch ? contentMatch[1] : ''
+
+        const svgWithBg = `<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}">
+  <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white"/>
+  <g transform="translate(${padding},${padding})">
+    ${content}
+  </g>
+</svg>`
+
+        resolve(svgWithBg)
+      })
+    }).catch(reject)
+  })
+}
+
+function getImageWidthHeight(file: File) {
+  return new Promise<{ width: number, height: number }>((resolve) => {
+    const img = new Image()
+    img.src = URL.createObjectURL(file)
+    img.onload = () => {
+      resolve({
+        width: img.width,
+        height: img.height,
+      })
+    }
+  })
 }
 
 // 组件加载时自动加载默认文件
@@ -261,8 +326,8 @@ const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
       <FileDropZone
         v-if="!svgCode || isLoaded"
         v-model:filename="fileName"
-        :accept="['image/svg+xml']"
-        default-text="Click or drop SVG file"
+        :accept="['image/*']"
+        default-text="Drop SVG or image file"
         @file-selected="handleFileSelected"
       />
       <div v-if="!svgCode && !isLoaded" flex="~ gap-2 items-center">
