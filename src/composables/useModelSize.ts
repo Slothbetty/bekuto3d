@@ -50,7 +50,7 @@ export function useModelSize() {
   }
 
   function updateScale(newSize: number, currentSize: number) {
-    if (currentSize === 0)
+    if (currentSize === 0 || newSize === 0)
       return
     scale.value = calcScale(scale.value, currentSize, newSize)
   }
