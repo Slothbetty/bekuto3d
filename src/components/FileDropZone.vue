@@ -129,6 +129,15 @@ function handleFiles(files: File[]) {
 function validateFileType(file: File) {
   if (props.accept.includes('image/*') && file.type.startsWith('image/'))
     return true
+
+  // Handle files that have not been identified by type; we use their extension to verify.
+  if (file.type === '') {
+    const ext = file.name.split('.').pop()
+    if (ext && props.accept.includes(ext))
+      return true
+    return false
+  }
+
   return props.accept.includes(file.type)
 }
 
