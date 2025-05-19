@@ -329,6 +329,10 @@ const isLoaded = computed(() => svgShapes.value.length && !isDefaultSvg.value)
         :accept="['image/*']"
         default-text="Drop SVG or image file"
         @file-selected="handleFileSelected"
+        @error="(stopPropagation, error) => {
+          stopPropagation()
+          console.error('FileDropZone error:', error)
+        }"
       />
       <div v-if="!svgCode && !isLoaded" flex="~ gap-2 items-center">
         <hr flex-1>

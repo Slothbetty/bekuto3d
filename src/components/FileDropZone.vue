@@ -2,7 +2,7 @@
 import { useDropZone, useEventListener } from '@vueuse/core'
 import { computed, ref } from 'vue'
 
-interface Props {
+interface TheProps {
   accept?: string[]
   multiple?: boolean
   maxSize?: number
@@ -11,7 +11,19 @@ interface Props {
   dropText?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
+interface TheEmits {
+  /**
+   * When the user selects a file and applies the file filter rules, this function is triggered, and you will receive a file list.
+   */
+  (e: 'fileSelected', files: File[]): void
+  /**
+   * This function is used to handle the common errors that appear after a file is selected.
+   * If you do not want to throw an error, you can use stopThrow() to prevent it from being thrown. To avoid unexpected silent errors, please manually call stopThrow() if necessary.
+   */
+  (e: 'error', stopPropagation: () => void, error: Error): void
+}
+
+const props = withDefaults(defineProps<TheProps>(), {
   accept: () => ['image/svg+xml'],
   multiple: false,
   maxSize: 10 * 1024 * 1024, // 默认 10MB
@@ -20,12 +32,9 @@ const props = withDefaults(defineProps<Props>(), {
   dropText: 'Drop it!',
 })
 
-const emit = defineEmits<{
-  (e: 'fileSelected', files: File[]): void
-  (e: 'error', error: Error): void
-}>()
+const emit = defineEmits<TheEmits>()
 
-const filename = defineModel<string>('filename')
+const filename = defineModel<string>('filename', { default: '' })
 
 const dragEnterCount = ref(0)
 const isGlobalDragging = ref(false)
@@ -77,33 +86,38 @@ const { isOverDropZone } = useDropZone(dropZone, {
 // 处理文件选择
 function handleFileSelect(event: Event) {
   const inputEl = event.target as HTMLInputElement
-  const files = inputEl.files
-  if (!files || files.length === 0)
+  if (!inputEl.files || inputEl.files.length === 0)
     return
-  handleFiles(Array.from(files))
+  const files = Array.from(inputEl.files)
   inputEl.value = ''
+
+  try {
+    handleFiles(files)
+  }
+  catch (error) {
+    let needPropagation = true
+    emit('error', () => needPropagation = false, error as Error)
+    if (needPropagation) {
+      throw error
+    }
+  }
 }
 
 // 处理文件验证和提交
 function handleFiles(files: File[]) {
-  try {
-    const invalidType = files.find(file => !validateFileType(file))
-    if (invalidType)
-      throw new Error(`不支持的文件类型: ${invalidType.type}`)
+  const invalidType = files.find(file => !validateFileType(file))
+  if (invalidType)
+    throw new Error(`不支持的文件类型: ${invalidType.type}`)
 
-    // 验证文件大小
-    const oversized = files.find(file => file.size > props.maxSize)
-    if (oversized)
-      throw new Error(`文件过大: ${oversized.name}`)
+  // 验证文件大小
+  const oversized = files.find(file => file.size > props.maxSize)
+  if (oversized)
+    throw new Error(`文件过大: ${oversized.name}`)
 
-    // 更新文件名
-    const fileName = files[0].name
-    filename.value = fileName
-    emit('fileSelected', files)
-  }
-  catch (error) {
-    emit('error', error as Error)
-  }
+  // 更新文件名
+  const fileName = files[0].name
+  filename.value = fileName
+  emit('fileSelected', files)
 }
 
 /**
