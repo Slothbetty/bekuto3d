@@ -43,12 +43,14 @@ const dropZone = ref<HTMLElement>()
 // 处理全局拖拽事件
 useEventListener('dragenter', (e) => {
   e.preventDefault()
+  const dataTransfer = e.dataTransfer
+  if (!dataTransfer?.items.length)
+    return
+  if (!validateFileTypeMimes(Array.from(dataTransfer.items).map(it => (it as DataTransferItem)?.type)))
+    return
   dragEnterCount.value++
   if (dragEnterCount.value === 1)
     isGlobalDragging.value = true
-  const dataTransfer = e.dataTransfer
-  if (!dataTransfer)
-    return
   dataTransfer.dropEffect = 'copy'
 })
 
@@ -69,6 +71,8 @@ useEventListener('dragleave', (e) => {
   dragEnterCount.value--
   if (dragEnterCount.value === 0)
     isGlobalDragging.value = false
+  if (dragEnterCount.value < 0)
+    dragEnterCount.value = 0
 })
 
 // 处理文件拖放
@@ -78,7 +82,7 @@ const { isOverDropZone } = useDropZone(dropZone, {
       return
     handleFiles(files)
   },
-  dataTypes: props.accept,
+  dataTypes: validateFileTypeMimes,
   multiple: props.multiple,
   preventDefaultForUnhandled: true,
 })
@@ -127,7 +131,7 @@ function handleFiles(files: File[]) {
  * @param file
  */
 function validateFileType(file: File) {
-  if (props.accept.includes('image/*') && file.type.startsWith('image/'))
+  if (validateFileTypeMimes([file.type]))
     return true
 
   // Handle files that have not been identified by type; we use their extension to verify.
@@ -139,6 +143,17 @@ function validateFileType(file: File) {
   }
 
   return props.accept.includes(file.type)
+}
+
+function validateFileTypeMimes(mimes: readonly string[]) {
+  for (const mime of mimes) {
+    if (props.accept.includes('image/*') && mime.startsWith('image/'))
+      continue
+    if (props.accept.includes(mime))
+      continue
+    return false
+  }
+  return true
 }
 
 // 计算显示文本
