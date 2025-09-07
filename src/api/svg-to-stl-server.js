@@ -12,9 +12,18 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
   resources: 'usable'
 })
 
+// Set up global DOM environment for Three.js
 global.window = dom.window
 global.document = dom.window.document
-global.navigator = dom.window.navigator
+
+// Set up global objects, handling read-only properties in newer Node.js versions
+try {
+  global.navigator = dom.window.navigator
+} catch (e) {
+  // navigator is read-only in newer Node.js versions, skip it
+  console.log('Skipping navigator setup (read-only in this Node.js version)')
+}
+
 global.HTMLElement = dom.window.HTMLElement
 global.Image = dom.window.Image
 global.URL = dom.window.URL
