@@ -55,7 +55,7 @@ const port = process.env.PORT || 3001
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 5 * 1024 * 1024 // 5MB limit (reduced to prevent memory issues)
   }
 })
 
@@ -78,7 +78,7 @@ app.use((req, res, next) => {
 // Default values from SvgTo3D.vue
 const defaultDepth = 2
 const defaultSize = 37
-const curveSegments = 64
+const curveSegments = 32 // Reduced from 64 to save memory
 
 // SVG to 3D conversion function (extracted from useSvgLoader.ts)
 function createShapesWithColor(svgData, options = {}) {
@@ -227,6 +227,18 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
       return res.status(400).json({ error: 'Invalid SVG file' })
     }
 
+    // Check SVG complexity to prevent memory issues
+    const pathCount = (svgData.match(/<path/g) || []).length
+    const polygonCount = (svgData.match(/<polygon/g) || []).length
+    const totalShapes = pathCount + polygonCount
+    
+    if (totalShapes > 100) {
+      return res.status(400).json({ 
+        error: 'SVG too complex. Please use SVGs with fewer than 100 shapes to prevent memory issues.',
+        shapesFound: totalShapes
+      })
+    }
+
     // Process SVG to create shapes
     const shapes = createShapesWithColor(svgData, {
       defaultDepth: depth,
@@ -242,6 +254,19 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
 
     // Export to STL
     const stlData = exportToSTL(modelGroup)
+
+    // Clean up memory
+    modelGroup.clear()
+    shapes.forEach(shape => {
+      if (shape.shape) {
+        shape.shape.dispose?.()
+      }
+    })
+    
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc()
+    }
 
     // Generate a unique filename
     const timestamp = Date.now()

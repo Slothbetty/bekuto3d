@@ -5,7 +5,7 @@
   "description": "API server for converting SVG files to STL using bekuto3d Vue components",
   "main": "svg-to-stl-server.js",
   "scripts": {
-    "start": "node svg-to-stl-server.js",
+    "start": "node --max-old-space-size=2048 svg-to-stl-server.js",
     "dev": "node --watch svg-to-stl-server.js",
     "build": "echo 'No build step required'",
     "test": "node test-client.js"
