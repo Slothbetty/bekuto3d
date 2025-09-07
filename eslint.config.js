@@ -9,4 +9,10 @@ export default antfu(
       'no-sequences': 'off',
     },
   },
+  {
+    ignores: [
+      'src/api/**/*',
+      'temp/**/*',
+    ],
+  },
 )
