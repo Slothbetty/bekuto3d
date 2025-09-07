@@ -308,9 +308,15 @@ app.get('/api/download/:filename', async (req, res) => {
         // Clean up the file after download (optional)
         setTimeout(() => {
           try {
-            fs.unlinkSync(filePath)
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath)
+              console.log(`Cleaned up file: ${filename}`)
+            }
           } catch (cleanupErr) {
-            console.error('Error cleaning up file:', cleanupErr)
+            // Only log if it's not a "file not found" error
+            if (cleanupErr.code !== 'ENOENT') {
+              console.error('Error cleaning up file:', cleanupErr)
+            }
           }
         }, 5000) // Delete after 5 seconds
       }
