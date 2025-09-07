@@ -78,7 +78,7 @@ app.use((req, res, next) => {
 // Default values from SvgTo3D.vue
 const defaultDepth = 2
 const defaultSize = 37
-const curveSegments = 32 // Reduced from 64 to save memory
+const curveSegments = 16 // Further reduced to save memory
 
 // SVG to 3D conversion function (extracted from useSvgLoader.ts)
 function createShapesWithColor(svgData, options = {}) {
@@ -192,8 +192,16 @@ function exportToSTL(modelGroup) {
 
 // Main conversion endpoint
 app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
+  // Set a timeout to prevent memory issues
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      res.status(408).json({ error: 'Request timeout - SVG too complex to process' })
+    }
+  }, 30000) // 30 second timeout
+
   try {
     if (!req.files || req.files.length === 0) {
+      clearTimeout(timeout)
       return res.status(400).json({ error: 'No SVG file provided' })
     }
 
@@ -232,9 +240,9 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
     const polygonCount = (svgData.match(/<polygon/g) || []).length
     const totalShapes = pathCount + polygonCount
     
-    if (totalShapes > 100) {
+    if (totalShapes > 50) {
       return res.status(400).json({ 
-        error: 'SVG too complex. Please use SVGs with fewer than 100 shapes to prevent memory issues.',
+        error: 'SVG too complex. Please use SVGs with fewer than 50 shapes to prevent memory issues.',
         shapesFound: totalShapes
       })
     }
@@ -288,6 +296,7 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
     // Return JSON response with download link
     const downloadUrl = `${req.protocol}://${req.get('host')}/api/download/${filename}`
     
+    clearTimeout(timeout)
     res.json({
       success: true,
       message: 'SVG successfully converted to STL',
@@ -302,6 +311,7 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
     })
 
   } catch (error) {
+    clearTimeout(timeout)
     console.error('Error converting SVG to STL:', error)
     res.status(500).json({ 
       error: 'Internal server error', 
