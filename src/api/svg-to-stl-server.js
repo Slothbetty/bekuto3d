@@ -51,8 +51,8 @@ const upload = multer({
 })
 
 // Middleware
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -276,9 +276,38 @@ app.post('/api/svg-to-stl', upload.any(), async (req, res) => {
   }
 })
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    name: 'SVG to STL API',
+    version: '1.0.0',
+    description: 'Convert SVG files to STL 3D models',
+    endpoints: {
+      health: '/api/health',
+      convert: 'POST /api/svg-to-stl',
+      download: 'GET /api/download/:filename'
+    },
+    usage: {
+      method: 'POST',
+      url: '/api/svg-to-stl',
+      contentType: 'multipart/form-data',
+      parameters: {
+        file: 'SVG file (required)',
+        depth: 'Extrusion depth in mm (optional, default: 2)',
+        size: 'Model size in mm (optional, default: 37)'
+      }
+    }
+  })
+})
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() })
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
+  })
 })
 
 // Download endpoint for STL files
